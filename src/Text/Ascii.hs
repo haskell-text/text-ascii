@@ -169,7 +169,14 @@ instance IsList AsciiText where
 
 -- Creation
 
+-- $setup
+-- >>> :set -XNoImplicitPrelude
+-- >>> import Text.Ascii
+
 -- | The empty text.
+--
+-- >>> length empty
+-- 0
 --
 -- /Complexity:/ \(\Theta(1)\)
 --

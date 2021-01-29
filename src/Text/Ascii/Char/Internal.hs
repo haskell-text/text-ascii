@@ -1,8 +1,7 @@
 {-# LANGUAGE DerivingVia #-}
-{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE Trustworthy #-}
 {-# LANGUAGE ViewPatterns #-}
 
 module Text.Ascii.Char.Internal where
@@ -13,20 +12,53 @@ import Data.Char (GeneralCategory, chr, generalCategory, isAscii, ord)
 import Data.Functor (($>))
 import Data.Hashable (Hashable)
 import Data.Word (Word8)
+import Numeric (showHex)
 import Optics.Prism (Prism', prism')
 import Type.Reflection (Typeable)
 
+-- | Represents valid ASCII characters, which are bytes from @0x00@ to @0x7f@.
+--
+-- @since 1.0.0
 newtype AsciiChar = AsciiChar {toByte :: Word8}
-  deriving (Eq, Ord, Hashable, NFData) via Word8
-  deriving stock (Show, Typeable)
+  deriving
+    ( -- | @since 1.0.0
+      Eq,
+      -- | @since 1.0.0
+      Ord,
+      -- | @since 1.0.0
+      Hashable,
+      -- | @since 1.0.0
+      NFData
+    )
+    via Word8
+  deriving stock
+    ( -- | @since 1.0.0
+      Typeable
+    )
 
+-- | @since 1.0.0
+instance Show AsciiChar where
+  {-# INLINEABLE show #-}
+  show (AsciiChar w8) = "'\\" <> showHex w8 "'"
+
+-- | @since 1.0.0
 instance Bounded AsciiChar where
   minBound = AsciiChar 0
   maxBound = AsciiChar 127
 
+-- | View an 'AsciiChar' as its underlying byte. You can pattern match on this,
+-- but since there are more bytes than valid ASCII characters, you cannot use
+-- this to construct.
+--
+-- @since 1.0.0
 pattern AsByte :: Word8 -> AsciiChar
 pattern AsByte w8 <- AsciiChar w8
 
+-- | View an 'AsciiChar' as a 'Char'. You can pattern match on this, but since
+-- there are more 'Char's than valid ASCII characters, you cannot use this to
+-- construct.
+--
+-- @since 1.0.0
 pattern AsChar :: Char -> AsciiChar
 pattern AsChar c <- AsciiChar (isJustAscii -> Just c)
 

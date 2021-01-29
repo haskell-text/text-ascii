@@ -1,6 +1,9 @@
+{-# LANGUAGE Safe #-}
+
 module Text.Ascii.Char
   ( -- * ASCII characters
     AsciiChar (AsByte, AsChar),
+    char,
     fromChar,
     fromByte,
     upcase,
@@ -22,3 +25,4 @@ module Text.Ascii.Char
 where
 
 import Text.Ascii.Char.Internal
+import Text.Ascii.QQ (char)
