@@ -1,0 +1,39 @@
+cabal-version:      3.0
+name:               text-ascii
+version:            1.0.0.0
+synopsis:           Handling ASCII strings for fun and profit.
+
+-- description:
+homepage:           https://github.org/kozross/hotteok
+license:            Apache-2.0
+license-file:       LICENSE.md
+author:             Koz Ross
+maintainer:         koz.ross@retro-freedom.nz
+copyright:          (C) Koz Ross 2021
+category:           Math
+tested-with:        GHC ==8.6.5 || ==8.8.4 || ==8.10.3 || ==9.0.0
+build-type:         Simple
+extra-source-files:
+  CHANGELOG.md
+  README.md
+
+library
+  exposed-modules:
+    Text.Ascii
+    Text.Ascii.Char
+
+  other-modules:    Text.Ascii.Char.Internal
+  build-depends:
+    , base         >=4.12     && <5
+    , bytestring   ^>=0.11.0.0
+    , deepseq      ^>=1.4.0.0
+    , hashable     ^>=1.3.0.0
+    , optics-core  ^>=0.3.0.0
+    , text         ^>=1.2.4.1
+
+  ghc-options:
+    -Wall -Wcompat -Wincomplete-record-updates
+    -Wincomplete-uni-patterns -Wredundant-constraints -Werror
+
+  hs-source-dirs:   src
+  default-language: Haskell2010
