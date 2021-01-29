@@ -2,10 +2,16 @@
 
 module Text.Ascii.Char
   ( -- * ASCII characters
+
+    -- ** Type
     AsciiChar (AsByte, AsChar),
+
+    -- ** Construction
     char,
     fromChar,
     fromByte,
+
+    -- ** Transformation
     upcase,
     downcase,
 

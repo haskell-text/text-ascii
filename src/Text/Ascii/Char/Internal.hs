@@ -66,23 +66,68 @@ pattern AsChar c <- AsciiChar (isJustAscii -> Just c)
 
 {-# COMPLETE AsChar #-}
 
+-- $setup
+-- >>> :set -XQuasiQuotes
+-- >>> import Text.Ascii.Char.Internal
+-- >>> import Text.Ascii.QQ (char)
+
+-- | Try and turn a 'Char' into the equivalent 'AsciiChar'. Will return
+-- 'Nothing' if given a 'Char' that has no ASCII equivalent.
+--
+-- >>> fromChar '0'
+-- Just '\0x48'
+-- >>> fromChar '😺'
+-- Nothing
+--
+-- @since 1.0.0
 fromChar :: Char -> Maybe AsciiChar
 fromChar c =
   if isAscii c
     then pure . AsciiChar . fromIntegral . ord $ c
     else Nothing
 
+-- | Try to give the 'AsciiChar' corresponding to the given byte. Will return
+-- 'Nothing' if given a byte that doesn't correspond to an ASCII character.
+--
+-- >>> fromByte 50
+-- Just '\0x4a'
+-- >>> fromByte 128
+-- Nothing
+--
+-- @since 1.0.0
 fromByte :: Word8 -> Maybe AsciiChar
 fromByte w8 =
   if isAscii . chr . fromIntegral $ w8
     then pure . AsciiChar $ w8
     else Nothing
 
+-- | Give the 'AsciiChar' corresponding to the uppercase version of the
+-- argument. Will give 'Nothing' if given an 'AsciiChar' which has no uppercase
+-- version, or is uppercase already.
+--
+-- >>> upcase [char| 'a' |]
+-- Just '\0x41'
+-- >>> upcase [char| '0' |]
+-- Nothing
+--
+-- @since 1.0.0
 upcase :: AsciiChar -> Maybe AsciiChar
-upcase c@(AsciiChar w8) = caseOf c >>= (\cs -> guard (cs == Lower) $> AsciiChar (w8 - 32))
+upcase c@(AsciiChar w8) =
+  caseOf c >>= (\cs -> guard (cs == Lower) $> AsciiChar (w8 - 32))
 
+-- | Give the 'AsciiChar' corresponding to the lowercase version of the
+-- argument. Will give 'Nothing' if given an 'AsciiChar' which has no lowercase
+-- version, or is lowercase already.
+--
+-- >>> downcase [char| 'C' |]
+-- Just '\0x63'
+-- >>> downcase [char| '\\' |]
+-- Nothing
+--
+-- @since 1.0.0
 downcase :: AsciiChar -> Maybe AsciiChar
-downcase c@(AsciiChar w8) = caseOf c >>= (\cs -> guard (cs == Upper) $> AsciiChar (w8 + 32))
+downcase c@(AsciiChar w8) =
+  caseOf c >>= (\cs -> guard (cs == Upper) $> AsciiChar (w8 + 32))
 
 -- Categorization
 

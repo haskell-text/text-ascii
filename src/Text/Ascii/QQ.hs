@@ -18,6 +18,21 @@ import Text.Ascii.Char.Internal (AsciiChar (AsciiChar))
 import Text.Parsec (Parsec, eof, oneOf, parse, satisfy, spaces)
 import qualified Text.Parsec as Parsec
 
+-- $setup
+-- >>> :set -XQuasiQuotes
+-- >>> import Text.Ascii.QQ (char)
+
+-- | Allows constructing ASCII characters from literals, whose correctness is
+-- checked by the compiler.
+--
+-- Currently, accepts literal syntax similar to the Haskell parser, with escape
+-- sequences preceded by \'\\\'. In particular, this includes the single quote
+-- (see the example below), but /not/ the double quote.
+--
+-- >>> [char| '\'' |]
+-- '\0x27'
+--
+-- @since 1.0.0
 char :: QuasiQuoter
 char = QuasiQuoter charQQ errPat errType errDec
 
