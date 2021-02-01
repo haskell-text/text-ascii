@@ -1,7 +1,5 @@
 {-# LANGUAGE DerivingVia #-}
-{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE Trustworthy #-}
-{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 
 module Text.Ascii
@@ -97,27 +95,19 @@ module Text.Ascii
 where
 
 import Control.Category ((.))
-import Control.DeepSeq (NFData)
 import Data.ByteString (ByteString)
 import qualified Data.ByteString as BS
 import Data.Char (isAscii)
 import Data.Coerce (coerce)
-import Data.Maybe (Maybe (Just, Nothing), fromJust)
+import Data.Maybe (Maybe (Just, Nothing))
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Text.Encoding (decodeUtf8, encodeUtf8)
-import GHC.Exts (IsList (Item, fromList, fromListN, toList))
 import Optics.Prism (Prism', prism')
-import Text.Ascii.Char.Internal (AsciiChar (AsciiChar))
+import Text.Ascii.Char.Internal (AsciiChar (AsciiChar), AsciiText (AsciiText))
 import Prelude
   ( Bool,
-    Eq,
     Int,
-    Monoid,
-    Ord,
-    Read,
-    Semigroup,
-    Show,
     not,
     pure,
     ($),
@@ -130,42 +120,6 @@ import Prelude
 -- This is cribbed directly from bytestring, as I figure they know what they're
 -- doing way better than we do. When we add our own functionality, this probably
 -- needs to be considered more carefully. - Koz
-
--- Type
-
--- | A string of ASCII characters, represented as a packed byte array.
---
--- @since 1.0.0
-newtype AsciiText = AsciiText ByteString
-  deriving
-    ( -- | @since 1.0.0
-      Eq,
-      -- | @since 1.0.0
-      Ord,
-      -- | @since 1.0.0
-      NFData,
-      -- | @since 1.0.0
-      Semigroup,
-      -- | @since 1.0.0
-      Monoid
-    )
-    via ByteString
-  deriving stock
-    ( -- | @since 1.0.0
-      Show,
-      -- | @since 1.0.0
-      Read
-    )
-
--- | @since 1.0.0
-instance IsList AsciiText where
-  type Item AsciiText = AsciiChar
-  {-# INLINEABLE fromList #-}
-  fromList = fromJust . fromByteString . fromList . coerce
-  {-# INLINEABLE fromListN #-}
-  fromListN n = fromJust . fromByteString . fromListN n . coerce
-  {-# INLINEABLE toList #-}
-  toList = coerce . toList . toByteString
 
 -- Creation
 

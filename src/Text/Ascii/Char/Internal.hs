@@ -2,16 +2,21 @@
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE Trustworthy #-}
+{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE ViewPatterns #-}
 
 module Text.Ascii.Char.Internal where
 
 import Control.DeepSeq (NFData)
 import Control.Monad (guard)
+import Data.ByteString (ByteString)
 import Data.Char (GeneralCategory, chr, generalCategory, isAscii, ord)
+import Data.Coerce (coerce)
 import Data.Functor (($>))
 import Data.Hashable (Hashable)
 import Data.Word (Word8)
+import GHC.Exts (IsList (Item, fromList, fromListN, toList))
 import Numeric (showHex)
 import Optics.Prism (Prism', prism')
 import Type.Reflection (Typeable)
@@ -65,6 +70,46 @@ pattern AsChar c <- AsciiChar (isJustAscii -> Just c)
 {-# COMPLETE AsByte #-}
 
 {-# COMPLETE AsChar #-}
+
+-- | A string of ASCII characters, represented as a packed byte array.
+--
+-- @since 1.0.0
+newtype AsciiText = AsciiText ByteString
+  deriving
+    ( -- | @since 1.0.0
+      Eq,
+      -- | @since 1.0.0
+      Ord,
+      -- | @since 1.0.0
+      NFData,
+      -- | @since 1.0.0
+      Semigroup,
+      -- | @since 1.0.0
+      Monoid
+    )
+    via ByteString
+  deriving stock
+    ( -- | @since 1.0.0
+      Show,
+      -- | @since 1.0.0
+      Read
+    )
+
+-- | @since 1.0.0
+instance IsList AsciiText where
+  type Item AsciiText = AsciiChar
+  {-# INLINEABLE fromList #-}
+  fromList =
+    coerce @ByteString @AsciiText
+      . fromList
+      . coerce @[AsciiChar] @[Word8]
+  {-# INLINEABLE fromListN #-}
+  fromListN n =
+    coerce @ByteString @AsciiText
+      . fromListN n
+      . coerce @[AsciiChar] @[Word8]
+  {-# INLINEABLE toList #-}
+  toList = coerce . toList . coerce @AsciiText @ByteString
 
 -- $setup
 -- >>> :set -XQuasiQuotes
