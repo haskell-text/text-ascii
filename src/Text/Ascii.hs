@@ -104,7 +104,7 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Text.Encoding (decodeUtf8, encodeUtf8)
 import Optics.Prism (Prism', prism')
-import Text.Ascii.Char.Internal (AsciiChar (AsciiChar), AsciiText (AsciiText))
+import Text.Ascii.Internal (AsciiChar (AsciiChar), AsciiText (AsciiText))
 import Prelude
   ( Bool,
     Int,

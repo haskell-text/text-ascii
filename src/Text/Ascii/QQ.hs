@@ -14,7 +14,7 @@ import Language.Haskell.TH.Syntax
     Q,
     Type,
   )
-import Text.Ascii.Char.Internal (AsciiChar (AsciiChar))
+import Text.Ascii.Internal (AsciiChar (AsciiChar))
 import Text.Parsec (Parsec, eof, oneOf, parse, satisfy, spaces)
 import qualified Text.Parsec as Parsec
 

@@ -23,7 +23,7 @@ library
     Text.Ascii.Char
 
   other-modules:
-    Text.Ascii.Char.Internal
+    Text.Ascii.Internal
     Text.Ascii.QQ
 
   build-depends:
