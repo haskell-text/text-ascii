@@ -41,7 +41,7 @@ newtype AsciiChar = AsciiChar {toByte :: Word8}
 -- | @since 1.0.0
 instance Show AsciiChar where
   {-# INLINEABLE show #-}
-  show (AsciiChar w8) = "'\\0x" <> showHex w8 "'"
+  show (AsciiChar w8) = "'0x" <> showHex w8 "'"
 
 -- | @since 1.0.0
 instance Bounded AsciiChar where

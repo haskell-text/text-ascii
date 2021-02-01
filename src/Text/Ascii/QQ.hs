@@ -50,7 +50,7 @@ import qualified Text.Parsec as Parsec
 -- (see the example below).
 --
 -- >>> [char| '\'' |]
--- '\0x27'
+-- '0x27'
 --
 -- @since 1.0.0
 char :: QuasiQuoter
@@ -63,8 +63,8 @@ char = QuasiQuoter charQQ (errPat "char") (errType "char") (errDec "char")
 -- sequences preceded by \'\\\'. In particular, this includes the double quote
 -- (see the example below).
 --
--- >>> [ascii| "\"Wow!\", he said." |]
--- "\"Wow!\", he said."
+-- >>> [ascii| "\"Nyan!\", said the catboy." |]
+-- "\"Nyan!\", said the catboy."
 --
 -- @since 1.0.0
 ascii :: QuasiQuoter

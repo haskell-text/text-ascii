@@ -50,7 +50,7 @@ import Text.Ascii.QQ (char)
 -- 'Nothing' if given a 'Char' that has no ASCII equivalent.
 --
 -- >>> fromChar '0'
--- Just '\0x30'
+-- Just '0x30'
 -- >>> fromChar '😺'
 -- Nothing
 --
@@ -65,7 +65,7 @@ fromChar c =
 -- 'Nothing' if given a byte that doesn't correspond to an ASCII character.
 --
 -- >>> fromByte 50
--- Just '\0x32'
+-- Just '0x32'
 -- >>> fromByte 128
 -- Nothing
 --
@@ -81,7 +81,7 @@ fromByte w8 =
 -- version, or is uppercase already.
 --
 -- >>> upcase [char| 'a' |]
--- Just '\0x41'
+-- Just '0x41'
 -- >>> upcase [char| '0' |]
 -- Nothing
 --
@@ -95,7 +95,7 @@ upcase c@(AsciiChar w8) =
 -- version, or is lowercase already.
 --
 -- >>> downcase [char| 'C' |]
--- Just '\0x63'
+-- Just '0x63'
 -- >>> downcase [char| '\\' |]
 -- Nothing
 --

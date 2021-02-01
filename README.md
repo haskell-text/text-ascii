@@ -4,6 +4,10 @@
 
 A library for handling ASCII text.
 
+## What's with all the cat stuff?
+
+[I am a Haskell catboy.](https://twitter.com/KozRoss)
+
 ## What can I do with this?
 
 The project is licensed Apache 2.0 (SPDX code

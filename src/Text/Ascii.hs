@@ -127,12 +127,16 @@ import Prelude
 
 -- $setup
 -- >>> :set -XNoImplicitPrelude
+-- >>> :set -XQuasiQuotes
 -- >>> import Text.Ascii
+-- >>> import Text.Ascii.Char (char, upcase)
+-- >>> import Prelude ((.), ($), replicate)
+-- >>> import Data.Maybe (fromMaybe)
 
 -- | The empty text.
 --
--- >>> length empty
--- 0
+-- >>> empty
+-- ""
 --
 -- /Complexity:/ \(\Theta(1)\)
 --
@@ -142,6 +146,9 @@ empty = coerce BS.empty
 
 -- | A text consisting of a single ASCII character.
 --
+-- >>> singleton [char| 'w' |]
+-- "w"
+--
 -- /Complexity:/ \(\Theta(1)\)
 --
 -- @since 1.0.0
@@ -149,12 +156,13 @@ empty = coerce BS.empty
 singleton :: AsciiChar -> AsciiText
 singleton = coerce BS.singleton
 
--- TODO: Quasiquoter
-
 -- Basic interface
 
 -- | Adds a character to the front of a text. This requires copying, which gives
 -- its complexity.
+--
+-- >>> cons [char| 'n' |] [ascii| "eko" |]
+-- "neko"
 --
 -- /Complexity:/ \(\Theta(n)\)
 --
@@ -166,6 +174,9 @@ cons = coerce BS.cons
 -- | Adds a character to the back of a text. This requires copying, which gives
 -- its complexity.
 --
+-- >>> snoc [ascii| "nek" |] [char| 'o' |]
+-- "neko"
+--
 -- /Complexity:/ \(\Theta(n)\)
 --
 -- @since 1.0.0
@@ -175,6 +186,13 @@ snoc = coerce BS.snoc
 
 -- | If the argument is non-empty, gives 'Just' the first character and the
 -- rest, and 'Nothing' otherwise.
+--
+-- >>> uncons empty
+-- Nothing
+-- >>> uncons . singleton $ [char| 'w' |]
+-- Just ('0x77',"")
+-- >>> uncons [ascii| "nekomimi" |]
+-- Just ('0x6e',"ekomimi")
 --
 -- /Complexity:/ \(\Theta(1)\)
 --
@@ -186,6 +204,13 @@ uncons = coerce BS.uncons
 -- | If the argument is non-empty, gives 'Just' the initial segment and the last
 -- character, and 'Nothing' otherwise.
 --
+-- >>> unsnoc empty
+-- Nothing
+-- >>> unsnoc . singleton $ [char| 'w' |]
+-- Just ("",'0x77')
+-- >>> unsnoc [ascii| "catboy" |]
+-- Just ("catbo",'0x79')
+--
 -- /Complexity:/ \(\Theta(1)\)
 --
 -- @since 1.0.0
@@ -193,9 +218,12 @@ uncons = coerce BS.uncons
 unsnoc :: AsciiText -> Maybe (AsciiText, AsciiChar)
 unsnoc = coerce BS.unsnoc
 
--- unsnoc (AsciiText bs) = bimap AsciiText AsciiChar <$> BS.unsnoc bs
-
 -- | The number of characters (and, since this is ASCII, bytes) in the text.
+--
+-- >>> length . singleton $ [char| 'w' |]
+-- 1
+-- >>> length [ascii| "nyan nyan" |]
+-- 9
 --
 -- /Complexity:/ \(\Theta(1)\)
 --
@@ -208,6 +236,9 @@ length = coerce BS.length
 
 -- | Copy, and apply the function to each element of, the text.
 --
+-- >>> map (\c -> fromMaybe c . upcase $ c) [ascii| "nyan!" |]
+-- "NYAN!"
+--
 -- /Complexity:/ \(\Theta(n)\)
 --
 -- @since 1.0.0
@@ -218,6 +249,13 @@ map = coerce BS.map
 -- | Takes a text and a list of texts, and concatenates the list after
 -- interspersing the first argument between each element of the list.
 --
+-- >>> intercalate [ascii| " ~ " |] []
+-- ""
+-- >>> intercalate [ascii| " ~ " |] [[ascii| "nyan" |]]
+-- "nyan"
+-- >>> intercalate [ascii| " ~ " |] . replicate 3 $ [ascii| "nyan" |]
+-- "nyan ~ nyan ~ nyan"
+--
 -- /Complexity:/ \(\Theta(n)\)
 --
 -- @since 1.0.0
@@ -226,6 +264,13 @@ intercalate :: AsciiText -> [AsciiText] -> AsciiText
 intercalate = coerce BS.intercalate
 
 -- | Takes a character, and places it between the characters of a text.
+--
+-- >>> intersperse [char| '~' |] empty
+-- ""
+-- >>> intersperse [char| '~' |] . singleton $ [char| 'w' |]
+-- "w"
+-- >>> intersperse [char| '~' |] [ascii| "nyan" |]
+-- "n~y~a~n"
 --
 -- /Complexity:/ \(\Theta(n)\)
 --
@@ -236,6 +281,17 @@ intersperse = coerce BS.intersperse
 -- | Transpose the rows and columns of the argument. This uses
 -- 'Data.List.transpose' internally, and thus, isn't very efficient.
 --
+-- >>> transpose []
+-- []
+-- >>> transpose [[ascii| "w" |]]
+-- ["w"]
+-- >>> transpose [[ascii| "nyan" |]]
+-- ["n","y","a","n"]
+-- >>> transpose . replicate 3 $ [ascii| "nyan" |]
+-- ["nnn","yyy","aaa","nnn"]
+-- >>> transpose [[ascii| "cat" |], [ascii| "boy" |], [ascii| "nyan" |]]
+-- ["cbn","aoy","tya","n"]
+--
 -- /Complexity:/ \(\Theta(n)\)
 --
 -- @since 1.0.0
@@ -243,6 +299,13 @@ transpose :: [AsciiText] -> [AsciiText]
 transpose = coerce BS.transpose
 
 -- | Reverse the text.
+--
+-- >>> reverse empty
+-- ""
+-- >>> reverse . singleton $ [char| 'w' |]
+-- "w"
+-- >>> reverse [ascii| "catboy goes nyan" |]
+-- "nayn seog yobtac"
 --
 -- /Complexity:/ \(\Theta(n)\)
 --
