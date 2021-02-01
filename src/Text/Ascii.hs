@@ -9,6 +9,7 @@ module Text.Ascii
     -- * Creation
     empty,
     singleton,
+    ascii,
 
     -- * Basic interface
     cons,
@@ -105,6 +106,7 @@ import qualified Data.Text as T
 import Data.Text.Encoding (decodeUtf8, encodeUtf8)
 import Optics.Prism (Prism', prism')
 import Text.Ascii.Internal (AsciiChar (AsciiChar), AsciiText (AsciiText))
+import Text.Ascii.QQ (ascii)
 import Prelude
   ( Bool,
     Int,

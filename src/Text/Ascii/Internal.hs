@@ -82,15 +82,11 @@ newtype AsciiText = AsciiText ByteString
       -- | @since 1.0.0
       Semigroup,
       -- | @since 1.0.0
-      Monoid
+      Monoid,
+      -- | @since 1.0.0
+      Show
     )
     via ByteString
-  deriving stock
-    ( -- | @since 1.0.0
-      Show,
-      -- | @since 1.0.0
-      Read
-    )
 
 -- | @since 1.0.0
 instance IsList AsciiText where
