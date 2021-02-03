@@ -55,7 +55,9 @@ module Text.Ascii
     take,
     drop,
     takeWhile,
+    takeWhileEnd,
     dropWhile,
+    dropWhileEnd,
     splitAt,
     break,
     span,
@@ -539,15 +541,46 @@ drop = coerce BS.drop
 
 -- TODO: dropEnd
 
+-- | @takeWhile p t@ returns the longest prefix of @t@ of characters that
+-- satisfy @p@.
+--
+-- /Complexity:/ \(\Theta(n)\)
+--
+-- @since 1.0.0
+{-# INLINE [1] takeWhile #-}
 takeWhile :: (AsciiChar -> Bool) -> AsciiText -> AsciiText
 takeWhile f (AsciiText at) = AsciiText . BS.takeWhile (coerce f) $ at
 
--- TODO: takeWhileEnd
+-- | @takeWhileEnd p t@ returns the longest suffix of @t@ of characters that
+-- satisfy @p@. Equivalent to @'reverse' . 'takeWhile' p . 'reverse'@.
+--
+-- /Complexity:/ \(\Theta(n)\)
+--
+-- @since 1.0.0
+{-# INLINE takeWhileEnd #-}
+takeWhileEnd :: (AsciiChar -> Bool) -> AsciiText -> AsciiText
+takeWhileEnd f = AsciiText . BS.takeWhileEnd (coerce f) . coerce
 
+-- | @dropWhile p t@ returns the suffix remaining after @'takeWhile' p t@.
+--
+-- /Complexity:/ \(\Theta(n)\)
+--
+-- @since 1.0.0
+{-# INLINE [1] dropWhile #-}
 dropWhile :: (AsciiChar -> Bool) -> AsciiText -> AsciiText
 dropWhile f (AsciiText at) = AsciiText . BS.dropWhile (coerce f) $ at
 
--- TODO: dropWhileEnd, dropAround, strip, stripStart, stripEnd
+-- | @dropWhileEnd p t@ returns the prefix remaining after @'takeWhileEnd' p t@.
+-- Equivalent to @'reverse' . 'dropWhile' p . 'reverse'@.
+--
+-- /Complexity:/ \(\Theta(n)\)
+--
+-- @since 1.0.0
+{-# INLINE dropWhileEnd #-}
+dropWhileEnd :: (AsciiChar -> Bool) -> AsciiText -> AsciiText
+dropWhileEnd f = AsciiText . BS.dropWhileEnd (coerce f) . coerce
+
+-- TODO: dropAround, strip, stripStart, stripEnd
 
 splitAt :: Int -> AsciiText -> (AsciiText, AsciiText)
 splitAt = coerce BS.splitAt
