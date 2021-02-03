@@ -47,6 +47,7 @@ module Text.Ascii
 
     -- ** Generation and unfolding
     unfoldr,
+    unfoldrN,
 
     -- * Substrings
 
@@ -96,6 +97,7 @@ module Text.Ascii
 where
 
 import Control.Category ((.))
+import Data.Bifunctor (first)
 import Data.ByteString (ByteString)
 import qualified Data.ByteString as BS
 import Data.Char (isAscii)
@@ -130,7 +132,7 @@ import Prelude
 -- >>> :set -XQuasiQuotes
 -- >>> import Text.Ascii
 -- >>> import Text.Ascii.Char (char, upcase)
--- >>> import Prelude ((.), ($), replicate)
+-- >>> import Prelude ((.), ($), replicate, (<>))
 -- >>> import Data.Maybe (fromMaybe)
 
 -- | The empty text.
@@ -319,6 +321,9 @@ reverse = coerce BS.reverse
 
 -- | Left-associative fold of a text.
 --
+-- >>> foldl (\acc c -> [ascii| "f(" |] <> acc <> singleton c <> [ascii| ")" |]) [ascii| "a" |] [ascii| "catboy" |]
+-- "f(f(f(f(f(f(ac)a)t)b)o)y)"
+--
 -- /Complexity:/ \(\Theta(n)\)
 --
 -- @since 1.0.0
@@ -327,6 +332,9 @@ foldl :: (a -> AsciiChar -> a) -> a -> AsciiText -> a
 foldl f x (AsciiText bs) = BS.foldl (coerce f) x bs
 
 -- | Left-associative fold of a text, strict in the accumulator.
+--
+-- >>> foldl' (\acc c -> [ascii| "f(" |] <> acc <> singleton c <> [ascii| ")" |]) [ascii| "a" |] [ascii| "catboy" |]
+-- "f(f(f(f(f(f(ac)a)t)b)o)y)"
 --
 -- /Complexity:/ \(\Theta(n)\)
 --
@@ -337,6 +345,9 @@ foldl' f x (AsciiText bs) = BS.foldl' (coerce f) x bs
 
 -- | Right-associative fold of a text.
 --
+-- >>> foldr (\c acc -> [ascii| "f(" |] <> acc <> singleton c <> [ascii| ")" |]) [ascii| "a" |] [ascii| "catboy" |]
+-- "f(f(f(f(f(f(ay)o)b)t)a)c)"
+--
 -- /Complexity:/ \(\Theta(n)\)
 --
 -- @since 1.0.0
@@ -345,6 +356,9 @@ foldr :: (AsciiChar -> a -> a) -> a -> AsciiText -> a
 foldr f x (AsciiText bs) = BS.foldr (coerce f) x bs
 
 -- | Right-associative fold of a text, strict in the accumulator.
+--
+-- >>> foldr' (\c acc -> [ascii| "f(" |] <> acc <> singleton c <> [ascii| ")" |]) [ascii| "a" |] [ascii| "catboy" |]
+-- "f(f(f(f(f(f(ay)o)b)t)a)c)"
 --
 -- /Complexity:/ \(\Theta(n)\)
 --
@@ -355,36 +369,171 @@ foldr' f x (AsciiText bs) = BS.foldr' (coerce f) x bs
 
 -- Special folds
 
+-- | Concatenate a list of texts.
+--
+-- >>> concat []
+-- ""
+-- >>> concat [[ascii| "catboy" |]]
+-- "catboy"
+-- >>> concat . replicate 4 $ [ascii| "nyan" |]
+-- "nyannyannyannyan"
+--
+-- /Complexity:/ \(\Theta(n)\)
+--
+-- @since 1.0.0
 concat :: [AsciiText] -> AsciiText
 concat = coerce BS.concat
 
+-- TODO: Generalize concat. No reason not to have it work with an arbitrary
+-- Foldable. - Koz
+
+-- | Map a text-producing function over a text, then concatenate the results.
+--
+-- >>> concatMap singleton empty
+-- ""
+-- >>> concatMap singleton [ascii| "nyan" |]
+-- "nyan"
+-- >>> concatMap (\c -> singleton c <> singleton c) [ascii| "nekomimi" |]
+-- "nneekkoommiimmii"
+--
+-- /Complexity:/ \(\Theta(n)\)
+--
+-- @since 1.0.0
 concatMap :: (AsciiChar -> AsciiText) -> AsciiText -> AsciiText
 concatMap = coerce BS.concatMap
 
-scanl :: (AsciiChar -> AsciiChar -> AsciiChar) -> AsciiChar -> AsciiText -> AsciiText
+-- TODO: Generalize concatMap. There's no reason it can't project to an
+-- arbitrary Monoid, because it's just doing list smashing in the backend. - Koz
+
+-- | 'scanl' is similar to 'foldl', but returns a list of successive values from
+-- the left.
+--
+-- /Complexity:/ \(\Theta(n)\)
+--
+-- @since 1.0.0
+{-# INLINE scanl #-}
+scanl ::
+  -- | accumulator -> element -> new accumulator
+  (AsciiChar -> AsciiChar -> AsciiChar) ->
+  -- | Starting accumulator value
+  AsciiChar ->
+  -- | Input of length \(n\)
+  AsciiText ->
+  -- | Output of length \(n + 1\)
+  AsciiText
 scanl = coerce BS.scanl
 
-scanr :: (AsciiChar -> AsciiChar -> AsciiChar) -> AsciiChar -> AsciiText -> AsciiText
+-- | 'scanr' is similar to 'foldr', but returns a list of successive values from
+-- the right.
+--
+-- /Complexity:/ \(\Theta(n)\)
+--
+-- @since 1.0.0
+{-# INLINE scanr #-}
+scanr ::
+  -- | element -> accumulator -> new accumulator
+  (AsciiChar -> AsciiChar -> AsciiChar) ->
+  -- | Starting accumulator value
+  AsciiChar ->
+  -- | Input of length \(n\)
+  AsciiText ->
+  -- | Output of length \(n + 1\)
+  AsciiText
 scanr = coerce BS.scanr
 
+-- Accumulating maps
+
+-- | Like a combination of 'map' and 'foldl''. Applies a function to each
+-- element of an 'AsciiText', passing an accumulating parameter from left to
+-- right, and returns a final 'AsciiText' along with the accumulating
+-- parameter's final value.
+--
+-- /Complexity:/ \(\Theta(n)\)
+--
+-- @since 1.0.0
+{-# INLINE mapAccumL #-}
 mapAccumL :: (a -> AsciiChar -> (a, AsciiChar)) -> a -> AsciiText -> (a, AsciiText)
 mapAccumL f x (AsciiText bs) = AsciiText <$> BS.mapAccumL (coerce f) x bs
 
+-- | Like a combination of 'map' and 'foldr'. Applies a function to each element
+-- of an 'AsciiText', passing an accumulating parameter from right to left, and
+-- returns a final 'AsciiText' along with the accumulating parameter's final
+-- value.
+--
+-- /Complexity:/ \(\Theta(n)\)
+--
+-- @since 1.0.0
+{-# INLINE mapAccumR #-}
 mapAccumR :: (a -> AsciiChar -> (a, AsciiChar)) -> a -> AsciiText -> (a, AsciiText)
 mapAccumR f x (AsciiText bs) = AsciiText <$> BS.mapAccumL (coerce f) x bs
 
+-- Generation and unfolding
+
 -- TODO: replicate
 
+-- | Similar to 'Data.List.unfoldr'. The function parameter takes a seed value,
+-- and produces either 'Nothing' (indicating that we're done) or 'Just' an
+-- 'AsciiChar' and a new seed value. 'unfoldr' then, given a starting seed, will
+-- repeatedly call the function parameter on successive seed values, returning
+-- the resulting 'AsciiText', based on the 'AsciiChar's produced, in the same
+-- order.
+--
+-- /Complexity:/ \(\Theta(n)\)
+--
+-- @since 1.0.0
+{-# INLINE unfoldr #-}
 unfoldr :: (a -> Maybe (AsciiChar, a)) -> a -> AsciiText
 unfoldr f = AsciiText . BS.unfoldr (coerce f)
 
--- TODO: unfoldrN
+-- | Similar to 'unfoldr', but also takes a maximum length parameter. The second
+-- element of the result tuple will be 'Nothing' if we finished with the
+-- function argument returning 'Nothing', and 'Just' the final seed value if we
+-- reached the maximum length before that happened.
+--
+-- /Complexity:/ \(\Theta(n)\)
+--
+-- @since 1.0.0
+{-# INLINE unfoldrN #-}
+unfoldrN :: Int -> (a -> Maybe (AsciiChar, a)) -> a -> (AsciiText, Maybe a)
+unfoldrN n f = first AsciiText . BS.unfoldrN n (coerce f)
 
+-- | @take n t@ returns the prefix of @t@ with length
+-- \(\min \{ \max \{ 0, {\tt n}\}, {\tt length} \; {\tt t} \}\)
+--
+-- >>> take (-100) [ascii| "catboy" |]
+-- ""
+-- >>> take 0 [ascii| "catboy" |]
+-- ""
+-- >>> take 3 [ascii| "catboy" |]
+-- "cat"
+-- >>> take 1000 [ascii| "catboy" |]
+-- "catboy"
+--
+-- /Complexity:/ \(\Theta(1)\)
+--
+-- @since 1.0.0
+{-# INLINE take #-}
 take :: Int -> AsciiText -> AsciiText
 take = coerce BS.take
 
 -- TODO: takeEnd
 
+-- | @drop n t@ returns the suffix of @t@ with length
+-- \(\max \{ 0, \min \{ {\tt length} \; {\tt t}, {\tt length} \; {\tt t} - {\tt n} \} \}\)
+--
+-- >>> drop (-100) [ascii| "catboy" |]
+-- "catboy"
+-- >>> drop 0 [ascii| "catboy" |]
+-- "catboy"
+-- >>> drop 3 [ascii| "catboy" |]
+-- "boy"
+-- >>> drop 1000 [ascii| "catboy" |]
+-- ""
+--
+-- /Complexity:/ \(\Theta(1)\)
+--
+-- @since 1.0.0
+{-# INLINE drop #-}
 drop :: Int -> AsciiText -> AsciiText
 drop = coerce BS.drop
 
