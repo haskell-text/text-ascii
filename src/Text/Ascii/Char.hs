@@ -1,4 +1,5 @@
 {-# LANGUAGE DerivingVia #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE Trustworthy #-}
 
@@ -106,20 +107,38 @@ downcase c@(AsciiChar w8) =
 
 -- Categorization
 
+-- | A categorization of ASCII characters based on whether they're meant to be
+-- displayed ('Printable') or for control ('Control').
+--
+-- @since 1.0.0
 newtype AsciiType = AsciiType Word8
   deriving (Eq, Ord, Hashable, NFData) via Word8
-  deriving stock (Show, Read)
 
+-- | @since 1.0.0
+instance Show AsciiType where
+  {-# INLINEABLE show #-}
+  show = \case
+    Control -> "Control"
+    Printable -> "Printable"
+
+-- | @since 1.0.0
 instance Bounded AsciiType where
   minBound = Control
   maxBound = Printable
 
+-- | A control character is any of the first 32 bytes (0-31), plus @DEL@ (127).
+--
+-- @since 1.0.0
 pattern Control :: AsciiType
 pattern Control <-
   AsciiType 0
   where
     Control = AsciiType 0
 
+-- | All ASCII characters whose byte is above 31 (and not 127) are printable
+-- characters.
+--
+-- @since 1.0.0
 pattern Printable :: AsciiType
 pattern Printable <-
   AsciiType 1
@@ -128,44 +147,82 @@ pattern Printable <-
 
 {-# COMPLETE Control, Printable #-}
 
+-- | Classify an 'AsciiChar' according to whether it's a control character or a
+-- printable character.
+--
+-- >>> charType [char| '\0' |]
+-- Control
+-- >>> charType [char| 'w' |]
+-- Printable
+--
+-- @since 1.0.0
 charType :: AsciiChar -> AsciiType
 charType (AsciiChar w8)
   | w8 == 127 = Control
   | w8 < 32 = Control
   | otherwise = Printable
 
+-- | A categorization of ASCII characters based on their usage. Based (loosely)
+-- on Unicode categories.
+--
+-- @since 1.0.0
 newtype AsciiCategory = AsciiCategory Word8
   deriving (Eq, Ord, Hashable, NFData) via Word8
-  deriving stock (Show, Read)
 
+-- | @since 1.0.0
+instance Show AsciiCategory where
+  {-# INLINEABLE show #-}
+  show = \case
+    Other -> "Other"
+    Symbol -> "Symbol"
+    Number -> "Number"
+    Letter -> "Letter"
+    Punctuation -> "Punctuation"
+
+-- | @since 1.0.0
 instance Bounded AsciiCategory where
   minBound = Other
   maxBound = Symbol
 
+-- | Something which doesn't fit into any of the other categories.
+--
+-- @since 1.0.0
 pattern Other :: AsciiCategory
 pattern Other <-
   AsciiCategory 0
   where
     Other = AsciiCategory 0
 
+-- | A punctuation character.
+--
+-- @since 1.0.0
 pattern Punctuation :: AsciiCategory
 pattern Punctuation <-
   AsciiCategory 1
   where
     Punctuation = AsciiCategory 1
 
+-- | A letter, either uppercase or lowercase.
+--
+-- @since 1.0.0
 pattern Letter :: AsciiCategory
 pattern Letter <-
   AsciiCategory 2
   where
     Letter = AsciiCategory 2
 
+-- | A numerical digit.
+--
+-- @since 1.0.0
 pattern Number :: AsciiCategory
 pattern Number <-
   AsciiCategory 3
   where
     Number = AsciiCategory 3
 
+-- | A symbol whose role isn't (normally) punctuation.
+--
+-- @since 1.0.0
 pattern Symbol :: AsciiCategory
 pattern Symbol <-
   AsciiCategory 4
@@ -174,6 +231,9 @@ pattern Symbol <-
 
 {-# COMPLETE Other, Punctuation, Letter, Number, Symbol #-}
 
+-- | Classify an 'AsciiChar' based on its category.
+--
+-- @since 1.0.0
 categorize :: AsciiChar -> AsciiCategory
 categorize c@(AsciiChar w8)
   | charType c == Control = Other
@@ -198,23 +258,42 @@ categorize c@(AsciiChar w8)
   | w8 == 0x7d = Punctuation
   | otherwise = Symbol -- This only leaves ~. - Koz
 
+-- | Compatibility method for the 'GeneralCategory' provided by 'Data.Char'.
+--
+-- @since 1.0.0
 categorizeGeneral :: AsciiChar -> GeneralCategory
 categorizeGeneral (AsciiChar w8) = generalCategory . chr . fromIntegral $ w8
 
+-- | The case of an ASCII character (if it has one).
+--
+-- @since 1.0.0
 newtype AsciiCase = AsciiCase Word8
   deriving (Eq, Ord, Hashable, NFData) via Word8
-  deriving stock (Show, Read)
 
+-- | @since 1.0.0
+instance Show AsciiCase where
+  {-# INLINEABLE show #-}
+  show = \case
+    Upper -> "Upper"
+    Lower -> "Lower"
+
+-- | @since 1.0.0
 instance Bounded AsciiCase where
   minBound = Upper
   maxBound = Lower
 
+-- | Indicator of an uppercase character.
+--
+-- @since 1.0.0
 pattern Upper :: AsciiCase
 pattern Upper <-
   AsciiCase 0
   where
     Upper = AsciiCase 0
 
+-- | Indicator of a lowercase character.
+--
+-- @since 1.0.0
 pattern Lower :: AsciiCase
 pattern Lower <-
   AsciiCase 1
@@ -223,16 +302,33 @@ pattern Lower <-
 
 {-# COMPLETE Upper, Lower #-}
 
+-- | Determine the case of an 'AsciiChar'. Returns 'Nothing' if the character
+-- doesn't have a case.
+--
+-- >>> caseOf [char| 'w' |]
+-- Just Lower
+-- >>> caseOf [char| 'W' |]
+-- Just Upper
+-- >>> caseOf [char| '~' |]
+-- Nothing
+--
+-- @since 1.0.0
 caseOf :: AsciiChar -> Maybe AsciiCase
 caseOf c@(AsciiChar w8)
   | categorize c /= Letter = Nothing
-  | w8 <= 0x51 = Just Upper
+  | w8 <= 0x5a = Just Upper
   | otherwise = Just Lower
 
 -- Optics
 
+-- | A representation of the relationship between 'Char' and 'AsciiChar'.
+--
+-- @since 1.0.0
 charWise :: Prism' Char AsciiChar
 charWise = prism' (chr . fromIntegral . toByte) fromChar
 
+-- | A representation of the relationship between ASCII characters and bytes.
+--
+-- @since 1.0.0
 byteWise :: Prism' Word8 AsciiChar
 byteWise = prism' toByte fromByte
