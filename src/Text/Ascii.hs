@@ -133,9 +133,9 @@ import Prelude
 -- >>> :set -XNoImplicitPrelude
 -- >>> :set -XQuasiQuotes
 -- >>> import Text.Ascii
--- >>> import Text.Ascii.Char (char, upcase)
--- >>> import Prelude ((.), ($), replicate, (<>))
--- >>> import Data.Maybe (fromMaybe)
+-- >>> import Text.Ascii.Char (char, upcase, AsciiCase (Lower), caseOf)
+-- >>> import Prelude ((.), ($), replicate, (<>), (==), (<))
+-- >>> import Data.Maybe (Maybe (Just), fromMaybe)
 
 -- | The empty text.
 --
@@ -386,9 +386,6 @@ foldr' f x (AsciiText bs) = BS.foldr' (coerce f) x bs
 concat :: [AsciiText] -> AsciiText
 concat = coerce BS.concat
 
--- TODO: Generalize concat. No reason not to have it work with an arbitrary
--- Foldable. - Koz
-
 -- | Map a text-producing function over a text, then concatenate the results.
 --
 -- >>> concatMap singleton empty
@@ -403,9 +400,6 @@ concat = coerce BS.concat
 -- @since 1.0.0
 concatMap :: (AsciiChar -> AsciiText) -> AsciiText -> AsciiText
 concatMap = coerce BS.concatMap
-
--- TODO: Generalize concatMap. There's no reason it can't project to an
--- arbitrary Monoid, because it's just doing list smashing in the backend. - Koz
 
 -- | 'scanl' is similar to 'foldl', but returns a list of successive values from
 -- the left.
@@ -544,6 +538,11 @@ drop = coerce BS.drop
 -- | @takeWhile p t@ returns the longest prefix of @t@ of characters that
 -- satisfy @p@.
 --
+-- >>> takeWhile ((Just Lower ==) . caseOf) empty
+-- ""
+-- >>> takeWhile ((Just Lower ==) . caseOf) [ascii| "catboy goes nyan" |]
+-- "catboy"
+--
 -- /Complexity:/ \(\Theta(n)\)
 --
 -- @since 1.0.0
@@ -554,6 +553,11 @@ takeWhile f (AsciiText at) = AsciiText . BS.takeWhile (coerce f) $ at
 -- | @takeWhileEnd p t@ returns the longest suffix of @t@ of characters that
 -- satisfy @p@. Equivalent to @'reverse' . 'takeWhile' p . 'reverse'@.
 --
+-- >>> takeWhileEnd ((Just Lower ==) . caseOf) empty
+-- ""
+-- >>> takeWhileEnd ((Just Lower ==) . caseOf) [ascii| "catboy goes nyan" |]
+-- "nyan"
+--
 -- /Complexity:/ \(\Theta(n)\)
 --
 -- @since 1.0.0
@@ -562,6 +566,11 @@ takeWhileEnd :: (AsciiChar -> Bool) -> AsciiText -> AsciiText
 takeWhileEnd f = AsciiText . BS.takeWhileEnd (coerce f) . coerce
 
 -- | @dropWhile p t@ returns the suffix remaining after @'takeWhile' p t@.
+--
+-- >>> dropWhile ((Just Lower ==) . caseOf) empty
+-- ""
+-- >>> dropWhile ((Just Lower ==) . caseOf) [ascii| "catboy goes nyan" |]
+-- " goes nyan"
 --
 -- /Complexity:/ \(\Theta(n)\)
 --
@@ -573,6 +582,11 @@ dropWhile f (AsciiText at) = AsciiText . BS.dropWhile (coerce f) $ at
 -- | @dropWhileEnd p t@ returns the prefix remaining after @'takeWhileEnd' p t@.
 -- Equivalent to @'reverse' . 'dropWhile' p . 'reverse'@.
 --
+-- >>> dropWhileEnd ((Just Lower ==) . caseOf) empty
+-- ""
+-- >>> dropWhileEnd ((Just Lower ==) . caseOf) [ascii| "catboy goes nyan" |]
+-- "catboy goes "
+--
 -- /Complexity:/ \(\Theta(n)\)
 --
 -- @since 1.0.0
@@ -583,6 +597,15 @@ dropWhileEnd f = AsciiText . BS.dropWhileEnd (coerce f) . coerce
 -- TODO: dropAround, strip, stripStart, stripEnd
 
 -- | @splitAt n t@ is equivalent to @('take' n t, 'drop' n t)@.
+--
+-- >>> splitAt (-3) [ascii| "catboy" |]
+-- ("","catboy")
+-- >>> splitAt 0 [ascii| "catboy" |]
+-- ("","catboy")
+-- >>> splitAt 3 [ascii| "catboy" |]
+-- ("cat","boy")
+-- >>> splitAt 1000 [ascii| "catboy" |]
+-- ("catboy","")
 --
 -- /Complexity:/ \(\Theta(1)\)
 --
@@ -596,6 +619,9 @@ splitAt = coerce BS.splitAt
 -- | @break p t@ is equivalent to @('takeWhile' ('not' p) t, 'dropWhile' ('not'
 -- p) t)@.
 --
+-- >>> break ([char| ' ' |] ==) [ascii| "catboy goes nyan" |]
+-- ("catboy"," goes nyan")
+--
 -- /Complexity:/ \(\Theta(n)\)
 --
 -- @since 1.0.0
@@ -603,6 +629,9 @@ break :: (AsciiChar -> Bool) -> AsciiText -> (AsciiText, AsciiText)
 break = coerce BS.break
 
 -- | @span p t@ is equivalent to @('takeWhile' p t, 'dropWhile' p t)@.
+--
+-- >>> span ([char| 'c' |] ==) [ascii| "catboy goes nyan" |]
+-- ("c","atboy goes nyan")
 --
 -- /Complexity:/ \(\Theta(n)\)
 --
@@ -620,6 +649,15 @@ span = coerce BS.span
 -- This is a specialized form of 'groupBy', and is about 40% faster than
 -- @'groupBy' '=='@.
 --
+-- >>> group empty
+-- []
+-- >>> group . singleton $ [char| 'w' |]
+-- ["w"]
+-- >>> group [ascii| "nyan" |]
+-- ["n","y","a","n"]
+-- >>> group [ascii| "nyaaaan" |]
+-- ["n","y","aaaa","n"]
+--
 -- /Complexity:/ \(\Theta(n)\)
 --
 -- @since 1.0.0
@@ -635,6 +673,13 @@ group = coerce BS.group
 -- 'group' is a special case for the function argument '=='; it is also about
 -- 40% faster.
 --
+-- >>> groupBy (<) empty
+-- []
+-- >>> groupBy (<) . singleton $ [char| 'w' |]
+-- ["w"]
+-- >>> groupBy (<) [ascii| "catboy goes nyan" |]
+-- ["c","atboy"," goes"," nyan"]
+--
 -- /Complexity:/ \(\Theta(n)\)
 --
 -- @since 1.0.0
@@ -642,6 +687,13 @@ groupBy :: (AsciiChar -> AsciiChar -> Bool) -> AsciiText -> [AsciiText]
 groupBy = coerce BS.groupBy
 
 -- | All prefixes of the argument, from shortest to longest.
+--
+-- >>> inits empty
+-- [""]
+-- >>> inits . singleton $ [char| 'w' |]
+-- ["","w"]
+-- >>> inits [ascii| "nyan" |]
+-- ["","n","ny","nya","nyan"]
 --
 -- /Complexity:/ \(\Theta(n)\)
 --
