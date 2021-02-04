@@ -582,61 +582,169 @@ dropWhileEnd f = AsciiText . BS.dropWhileEnd (coerce f) . coerce
 
 -- TODO: dropAround, strip, stripStart, stripEnd
 
+-- | @splitAt n t@ is equivalent to @('take' n t, 'drop' n t)@.
+--
+-- /Complexity:/ \(\Theta(1)\)
+--
+-- @since 1.0.0
+{-# INLINE splitAt #-}
 splitAt :: Int -> AsciiText -> (AsciiText, AsciiText)
 splitAt = coerce BS.splitAt
 
 -- TODO: breakOn, breakOnEnd
 
+-- | @break p t@ is equivalent to @('takeWhile' ('not' p) t, 'dropWhile' ('not'
+-- p) t)@.
+--
+-- /Complexity:/ \(\Theta(n)\)
+--
+-- @since 1.0.0
 break :: (AsciiChar -> Bool) -> AsciiText -> (AsciiText, AsciiText)
 break = coerce BS.break
 
+-- | @span p t@ is equivalent to @('takeWhile' p t, 'dropWhile' p t)@.
+--
+-- /Complexity:/ \(\Theta(n)\)
+--
+-- @since 1.0.0
+{-# INLINE [1] span #-}
 span :: (AsciiChar -> Bool) -> AsciiText -> (AsciiText, AsciiText)
 span = coerce BS.span
 
+-- | Separate a text into a list of texts such that:
+--
+-- * Their concatenation is equal to the original argument; and
+-- * Equal adjacent characters in the original argument are in the same text in
+-- the result.
+--
+-- This is a specialized form of 'groupBy', and is about 40% faster than
+-- @'groupBy' '=='@.
+--
+-- /Complexity:/ \(\Theta(n)\)
+--
+-- @since 1.0.0
 group :: AsciiText -> [AsciiText]
 group = coerce BS.group
 
+-- | Separate a text into a list of texts such that:
+--
+-- * Their concatenation is equal to the original argument; and
+-- * Adjacent characters for which the function argument returns @True@ are in
+-- the same text in the result.
+--
+-- 'group' is a special case for the function argument '=='; it is also about
+-- 40% faster.
+--
+-- /Complexity:/ \(\Theta(n)\)
+--
+-- @since 1.0.0
 groupBy :: (AsciiChar -> AsciiChar -> Bool) -> AsciiText -> [AsciiText]
 groupBy = coerce BS.groupBy
 
+-- | All prefixes of the argument, from shortest to longest.
+--
+-- /Complexity:/ \(\Theta(n)\)
+--
+-- @since 1.0.0
 inits :: AsciiText -> [AsciiText]
 inits = coerce BS.inits
 
+-- | All suffixes of the argument, from shortest to longest.
+--
+-- /Complexity:/ \(\Theta(n)\)
+--
+-- @since 1.0.0
 tails :: AsciiText -> [AsciiText]
 tails = coerce BS.tails
 
+-- Breaking into many substrings
+
 -- TODO: splitOn
 
+-- | @split p t@ separates @t@ into components delimited by separators, for
+-- which @p@ returns @True@. The results do not contain the separators. Multiple
+-- adjacent separators result in an empty component.
+--
+-- /Complexity:/ \(\Theta(n)\)
+--
+-- @since 1.0.0
+{-# INLINE split #-}
 split :: (AsciiChar -> Bool) -> AsciiText -> [AsciiText]
 split = coerce BS.splitWith
 
--- TODO: chunksOf, lines, words, unlines, unwords
+-- TODO: chunksOf
+-- Breaking into lines and words
+-- TODO: lines, words, unlines, unwords
 
+-- View patterns
+
+-- | Return 'Just' the suffix of the second text if it has the first text as
+-- a prefix, 'Nothing' otherwise.
+--
+-- /Complexity:/ \(\Theta(n)\)
+--
+-- @since 1.0.0
 stripPrefix :: AsciiText -> AsciiText -> Maybe AsciiText
 stripPrefix = coerce BS.stripPrefix
 
+-- | Return 'Just' the prefix of the second text if it has the first text as
+-- a suffix, 'Nothing' otherwise.
+--
+-- /Complexity:/ \(\Theta(n)\)
+--
+-- @since 1.0.0
 stripSuffix :: AsciiText -> AsciiText -> Maybe AsciiText
 stripSuffix = coerce BS.stripSuffix
 
 -- TODO: stripInfix, commonPrefixes
 
+-- Searching
+
+-- | Return the text comprised of all the characters that satisfy the function
+-- argument (that is, for which it returns 'True'), in the same order as in the
+-- original.
+--
+-- /Complexity:/ \(\Theta(n)\)
+--
+-- @since 1.0.0
 filter :: (AsciiChar -> Bool) -> AsciiText -> AsciiText
 filter = coerce BS.filter
 
 -- TODO: breakOnAll
 
+-- | Returns 'Just' the first character in the text satisfying the predicate,
+-- 'Nothing' otherwise.
+--
+-- /Complexity:/ \(\Theta(n)\)
+--
+-- @since 1.0.0
 find :: (AsciiChar -> Bool) -> AsciiText -> Maybe AsciiChar
 find = coerce BS.find
 
+-- | @partition p t@ is equivalent to @('filter' p t, 'filter' ('not' p) t)@.
+--
+-- /Complexity:/ \(\Theta(n)\)
+--
+-- @since 1.0.0
 partition :: (AsciiChar -> Bool) -> AsciiText -> (AsciiText, AsciiText)
 partition = coerce BS.partition
 
+-- Indexing
+
 -- TODO: index, safe only
 
+-- | Returns 'Just' the first index in the text such that the character at that
+-- index satisfies the predicate, 'Nothing' otherwise.
+--
+-- /Complexity:/ \(\Theta(n)\)
+--
+-- @since 1.0.0
 findIndex :: (AsciiChar -> Bool) -> AsciiText -> Maybe Int
 findIndex = coerce BS.findIndex
 
 -- TODO: count
+
+-- Zipping
 
 zip :: AsciiText -> AsciiText -> [(AsciiChar, AsciiChar)]
 zip = coerce BS.zip
@@ -645,26 +753,57 @@ zip = coerce BS.zip
 
 -- Conversions
 
+-- | Try and convert a 'Text' into an 'AsciiText'. Gives 'Nothing' if the 'Text'
+-- contains any symbols which lack an ASCII equivalent.
+--
+-- /Complexity:/ \(\Theta(n)\)
+--
+-- @since 1.0.0
 fromText :: Text -> Maybe AsciiText
 fromText t = case T.find (not . isAscii) t of
   Nothing -> pure . AsciiText . encodeUtf8 $ t
   Just _ -> Nothing
 
+-- | Try and convert a 'ByteString' into an 'AsciiText'. Gives 'Nothing' if the
+-- 'ByteString' contains any bytes outside the ASCII range (that is, from 0 to
+-- 127 inclusive).
+--
+-- /Complexity:/ \(\Theta(n)\)
+--
+-- @since 1.0.0
 fromByteString :: ByteString -> Maybe AsciiText
 fromByteString bs = case BS.find (> 127) bs of
   Nothing -> pure . AsciiText $ bs
   Just _ -> Nothing
 
+-- | Convert an 'AsciiText' into a 'Text' (by copying).
+--
+-- /Complexity:/ \(\Theta(n)\)
+--
+-- @since 1.0.0
 toText :: AsciiText -> Text
 toText (AsciiText bs) = decodeUtf8 bs
 
+-- | Reinterpret an 'AsciiText' as a 'ByteString' (without copying).
+--
+-- /Complexity:/ \(\Theta(1)\)
+--
+-- @since 1.0.0
 toByteString :: AsciiText -> ByteString
 toByteString = coerce
 
 -- Prisms
 
+-- | A convenient demonstration of the relationship between 'toText' and
+-- 'fromText'.
+--
+-- @since 1.0.0
 textWise :: Prism' Text AsciiText
 textWise = prism' toText fromText
 
+-- | A convenient demonstration of the relationship between 'toByteString' and
+-- 'fromByteString'.
+--
+-- @since 1.0.0
 byteStringWise :: Prism' ByteString AsciiText
 byteStringWise = prism' toByteString fromByteString
