@@ -27,9 +27,11 @@ jobs:
       with:
         ghc-version: ${{ matrix.ghc }}
         cabal-version: ${{ matrix.cabal }}
-    
+   
+    - name: Update
+      run: cabal new-update
     - name: Build
       run: |
-        cabal configure --enable-tests --test-show-details=direct
-        cabal build
+        cabal new-configure $CONFIG 
+        cabal build $CONFIG
 
