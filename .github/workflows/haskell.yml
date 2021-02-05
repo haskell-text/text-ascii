@@ -23,7 +23,6 @@ jobs:
       if: github.event.action == 'opened' || github.event.action == 'synchronize' || github.event.ref == 'refs/heads/master'
 
     - uses: haskell/actions/setup@v1
-      id: setup-haskell-cabal
       name: Setup Haskell
       with:
         ghc-version: ${{ matrix.ghc }}
@@ -32,5 +31,5 @@ jobs:
     - name: Build
       run: |
         cabal configure --enable-tests --test-show-details=direct
-        cabal build all
+        cabal build
 
