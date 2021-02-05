@@ -3,6 +3,18 @@
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE Trustworthy #-}
 
+-- |
+-- Module: Text.Ascii.Char
+-- Copyright: (C) 2021 Koz Ross
+-- License: Apache 2.0
+-- Maintainer: Koz Ross <koz.ross@retro-freedom.nz>
+-- Stability: stable
+-- Portability: GHC only
+--
+-- An implementation of ASCII characters, as bytes restricted to the range 0 -
+-- 127 inclusive.
+--
+-- /See also:/ [Wikipedia entry for ASCII](https://en.wikipedia.org/wiki/ASCII)
 module Text.Ascii.Char
   ( -- * ASCII characters
 
@@ -233,6 +245,17 @@ pattern Symbol <-
 
 -- | Classify an 'AsciiChar' based on its category.
 --
+-- >>> categorize [char| ',' |]
+-- Punctuation
+-- >>> categorize [char| '~' |]
+-- Symbol
+-- >>> categorize [char| 'w' |]
+-- Letter
+-- >>> categorize [char| '2' |]
+-- Number
+-- >>> categorize [char| '\0' |]
+-- Other
+--
 -- @since 1.0.0
 categorize :: AsciiChar -> AsciiCategory
 categorize c@(AsciiChar w8)
@@ -259,6 +282,17 @@ categorize c@(AsciiChar w8)
   | otherwise = Symbol -- This only leaves ~. - Koz
 
 -- | Compatibility method for the 'GeneralCategory' provided by 'Data.Char'.
+--
+-- >>> categorizeGeneral [char| ',' |]
+-- OtherPunctuation
+-- >>> categorizeGeneral [char| '~' |]
+-- MathSymbol
+-- >>> categorizeGeneral [char| 'w' |]
+-- LowercaseLetter
+-- >>> categorizeGeneral [char| '2' |]
+-- DecimalNumber
+-- >>> categorizeGeneral [char| '\0' |]
+-- Control
 --
 -- @since 1.0.0
 categorizeGeneral :: AsciiChar -> GeneralCategory

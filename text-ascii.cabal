@@ -1,9 +1,11 @@
 cabal-version:      3.0
 name:               text-ascii
 version:            1.0.0.0
-synopsis:           Handling ASCII strings for fun and profit.
+synopsis:           ASCII string and character processing.
+description:
+  A total-by-default, tested and documented library for
+  working with ASCII text. Low on dependencies , high on usability.
 
--- description:
 homepage:           https://github.org/kozross/hotteok
 license:            Apache-2.0
 license-file:       LICENSE.md

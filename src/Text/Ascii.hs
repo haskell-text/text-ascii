@@ -2,6 +2,21 @@
 {-# LANGUAGE Trustworthy #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 
+-- |
+-- Module: Text.Ascii
+-- Copyright: (C) 2021 Koz Ross
+-- License: Apache 2.0
+-- Maintainer: Koz Ross <koz.ross@retro-freedom.nz>
+-- Stability: stable
+-- Portability: GHC only
+--
+-- An implementation of ASCII strings.
+--
+-- This module is designed for qualified importing:
+--
+-- > import qualified Text.Ascii as Ascii
+--
+-- /See also:/ [Wikipedia entry for ASCII](https://en.wikipedia.org/wiki/ASCII)
 module Text.Ascii
   ( -- * Type
     AsciiText,
@@ -132,10 +147,12 @@ import Prelude
 -- $setup
 -- >>> :set -XNoImplicitPrelude
 -- >>> :set -XQuasiQuotes
+-- >>> :set -XOverloadedStrings
 -- >>> import Text.Ascii
 -- >>> import Text.Ascii.Char (char, upcase, AsciiCase (Lower), caseOf)
--- >>> import Prelude ((.), ($), replicate, (<>), (==), (<))
+-- >>> import Prelude ((.), ($), replicate, (<>), (==), (<), (/=))
 -- >>> import Data.Maybe (Maybe (Just), fromMaybe)
+-- >>> import qualified Data.ByteString as BS
 
 -- | The empty text.
 --
@@ -703,6 +720,13 @@ inits = coerce BS.inits
 
 -- | All suffixes of the argument, from shortest to longest.
 --
+-- >>> tails empty
+-- [""]
+-- >>> tails . singleton $ [char| 'w' |]
+-- ["w",""]
+-- >>> tails [ascii| "nyan" |]
+-- ["nyan","yan","an","n",""]
+--
 -- /Complexity:/ \(\Theta(n)\)
 --
 -- @since 1.0.0
@@ -714,8 +738,26 @@ tails = coerce BS.tails
 -- TODO: splitOn
 
 -- | @split p t@ separates @t@ into components delimited by separators, for
--- which @p@ returns @True@. The results do not contain the separators. Multiple
--- adjacent separators result in an empty component.
+-- which @p@ returns @True@. The results do not contain the separators.
+--
+-- \(n\) adjacent separators result in \(n - 1\) empty components in the result.
+--
+-- >>> split ([char| '~' |] ==) empty
+-- []
+-- >>> split ([char| '~' |] ==) . singleton $ [char| '~' |]
+-- ["",""]
+-- >>> split ([char| '~' |] ==) [ascii| "nyan" |]
+-- ["nyan"]
+-- >>> split ([char| '~' |] ==) [ascii| "~nyan" |]
+-- ["","nyan"]
+-- >>> split ([char| '~' |] ==) [ascii| "nyan~" |]
+-- ["nyan",""]
+-- >>> split ([char| '~' |] ==) [ascii| "nyan~nyan"|]
+-- ["nyan","nyan"]
+-- >>> split ([char| '~' |] ==) [ascii| "nyan~~nyan" |]
+-- ["nyan","","nyan"]
+-- >>> split ([char| '~' |] ==) [ascii| "nyan~~~nyan" |]
+-- ["nyan","","","nyan"]
 --
 -- /Complexity:/ \(\Theta(n)\)
 --
@@ -733,6 +775,17 @@ split = coerce BS.splitWith
 -- | Return 'Just' the suffix of the second text if it has the first text as
 -- a prefix, 'Nothing' otherwise.
 --
+-- >>> stripPrefix [ascii| "catboy" |] empty
+-- Nothing
+-- >>> stripPrefix empty [ascii| "catboy" |]
+-- Just "catboy"
+-- >>> stripPrefix [ascii| "nyan" |] [ascii| "nyan" |]
+-- Just ""
+-- >>> stripPrefix [ascii| "nyan" |] [ascii| "catboy" |]
+-- Nothing
+-- >>> stripPrefix [ascii| "catboy" |] [ascii| "catboy goes nyan" |]
+-- Just " goes nyan"
+--
 -- /Complexity:/ \(\Theta(n)\)
 --
 -- @since 1.0.0
@@ -741,6 +794,17 @@ stripPrefix = coerce BS.stripPrefix
 
 -- | Return 'Just' the prefix of the second text if it has the first text as
 -- a suffix, 'Nothing' otherwise.
+--
+-- >>> stripSuffix [ascii| "catboy" |] empty
+-- Nothing
+-- >>> stripSuffix empty [ascii| "catboy" |]
+-- Just "catboy"
+-- >>> stripSuffix [ascii| "nyan" |] [ascii| "nyan" |]
+-- Just ""
+-- >>> stripSuffix [ascii| "nyan" |] [ascii| "catboy" |]
+-- Nothing
+-- >>> stripSuffix [ascii| "nyan" |] [ascii| "catboy goes nyan" |]
+-- Just "catboy goes "
 --
 -- /Complexity:/ \(\Theta(n)\)
 --
@@ -756,9 +820,17 @@ stripSuffix = coerce BS.stripSuffix
 -- argument (that is, for which it returns 'True'), in the same order as in the
 -- original.
 --
+-- >>> filter ([char| 'n' |] ==) empty
+-- ""
+-- >>> filter ([char| 'n' |] ==) [ascii| "catboy" |]
+-- ""
+-- >>> filter ([char| 'n' |] ==) [ascii| "nyan" |]
+-- "nn"
+--
 -- /Complexity:/ \(\Theta(n)\)
 --
 -- @since 1.0.0
+{-# INLINE filter #-}
 filter :: (AsciiChar -> Bool) -> AsciiText -> AsciiText
 filter = coerce BS.filter
 
@@ -767,13 +839,32 @@ filter = coerce BS.filter
 -- | Returns 'Just' the first character in the text satisfying the predicate,
 -- 'Nothing' otherwise.
 --
+-- >>> find ([char| 'n' |] ==) empty
+-- Nothing
+-- >>> find ([char| 'n' |] ==) [ascii| "catboy" |]
+-- Nothing
+-- >>> find ([char| 'n' |] ==) [ascii| "nyan" |]
+-- Just '0x6e'
+-- >>> find ([char| 'n' |] /=) [ascii| "nyan" |]
+-- Just '0x79'
+--
 -- /Complexity:/ \(\Theta(n)\)
 --
 -- @since 1.0.0
+{-# INLINE find #-}
 find :: (AsciiChar -> Bool) -> AsciiText -> Maybe AsciiChar
 find = coerce BS.find
 
 -- | @partition p t@ is equivalent to @('filter' p t, 'filter' ('not' p) t)@.
+--
+-- >>> partition ([char| 'n' |] ==) empty
+-- ("","")
+-- >>> partition ([char| 'n' |] ==) . singleton $ [char| 'n' |]
+-- ("n","")
+-- >>> partition ([char| 'n' |] ==) . singleton $ [char| 'w' |]
+-- ("","w")
+-- >>> partition ([char| 'n' |] ==) [ascii| "nyan!" |]
+-- ("nn","ya!")
 --
 -- /Complexity:/ \(\Theta(n)\)
 --
@@ -788,9 +879,19 @@ partition = coerce BS.partition
 -- | Returns 'Just' the first index in the text such that the character at that
 -- index satisfies the predicate, 'Nothing' otherwise.
 --
+-- >>> findIndex ([char| 'n' |] ==) empty
+-- Nothing
+-- >>> findIndex ([char| 'n' |] ==) . singleton $ [char| 'n' |]
+-- Just 0
+-- >>> findIndex ([char| 'n' |] ==) . singleton $ [char| 'w' |]
+-- Nothing
+-- >>> findIndex ([char| 'n' |] ==) [ascii| "nyan" |]
+-- Just 0
+--
 -- /Complexity:/ \(\Theta(n)\)
 --
 -- @since 1.0.0
+{-# INLINE [1] findIndex #-}
 findIndex :: (AsciiChar -> Bool) -> AsciiText -> Maybe Int
 findIndex = coerce BS.findIndex
 
@@ -798,6 +899,19 @@ findIndex = coerce BS.findIndex
 
 -- Zipping
 
+-- | \'Pair off\' characters in both texts at corresponding indices. The result
+-- will be limited to the shorter of the two arguments.
+--
+-- >>> zip empty [ascii| "catboy" |]
+-- []
+-- >>> zip [ascii| "catboy" |] empty
+-- []
+-- >>> zip [ascii| "catboy" |] [ascii| "nyan" |]
+-- [('0x63','0x6e'),('0x61','0x79'),('0x74','0x61'),('0x62','0x6e')]
+--
+-- /Complexity:/ \(\Theta(n)\)
+--
+-- @since 1.0.0
 zip :: AsciiText -> AsciiText -> [(AsciiChar, AsciiChar)]
 zip = coerce BS.zip
 
@@ -807,6 +921,11 @@ zip = coerce BS.zip
 
 -- | Try and convert a 'Text' into an 'AsciiText'. Gives 'Nothing' if the 'Text'
 -- contains any symbols which lack an ASCII equivalent.
+--
+-- >>> fromText "catboy"
+-- Just "catboy"
+-- >>> fromText "😺😺😺😺😺"
+-- Nothing
 --
 -- /Complexity:/ \(\Theta(n)\)
 --
@@ -820,6 +939,11 @@ fromText t = case T.find (not . isAscii) t of
 -- 'ByteString' contains any bytes outside the ASCII range (that is, from 0 to
 -- 127 inclusive).
 --
+-- >>> fromByteString "catboy"
+-- Just "catboy"
+-- >>> fromByteString . BS.pack $ [128]
+-- Nothing
+--
 -- /Complexity:/ \(\Theta(n)\)
 --
 -- @since 1.0.0
@@ -830,6 +954,13 @@ fromByteString bs = case BS.find (> 127) bs of
 
 -- | Convert an 'AsciiText' into a 'Text' (by copying).
 --
+-- >>> toText empty
+-- ""
+-- >>> toText . singleton $ [char| 'w' |]
+-- "w"
+-- >>> toText [ascii| "nyan" |]
+-- "nyan"
+--
 -- /Complexity:/ \(\Theta(n)\)
 --
 -- @since 1.0.0
@@ -837,6 +968,13 @@ toText :: AsciiText -> Text
 toText (AsciiText bs) = decodeUtf8 bs
 
 -- | Reinterpret an 'AsciiText' as a 'ByteString' (without copying).
+--
+-- >>> toByteString empty
+-- ""
+-- >>> toByteString . singleton $ [char| 'w' |]
+-- "w"
+-- >>> toByteString [ascii| "nyan" |]
+-- "nyan"
 --
 -- /Complexity:/ \(\Theta(1)\)
 --
