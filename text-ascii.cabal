@@ -1,12 +1,12 @@
 cabal-version:      3.0
 name:               text-ascii
-version:            1.0.0.0
+version:            1.0.0
 synopsis:           ASCII string and character processing.
 description:
   A total-by-default, tested and documented library for
   working with ASCII text. Low on dependencies , high on usability.
 
-homepage:           https://github.org/kozross/hotteok
+homepage:           https://github.org/kozross/text-ascii
 license:            Apache-2.0
 license-file:       LICENSE.md
 author:             Koz Ross
@@ -49,6 +49,6 @@ library
   default-language: Haskell2010
 
 flag dev
-  description: Always use this during development
+  description: Always use this during development!
   manual:      True
   default:     False
