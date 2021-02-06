@@ -61,3 +61,7 @@ show the behaviour with doctests, preferably both.
 Where possible, keep to a similar style to the rest of the module (and the
 package). This isn't a hard-and-fast rule, but a good thing to keep in mind for
 consistency reasons.
+
+While developing, ensure you use the `dev` flag. Our CI uses this flag to ensure
+that no warnings are triggered, and the only reason this isn't the default is
+because Hackage rejects packages with the combination of `-Wall -Werror`.

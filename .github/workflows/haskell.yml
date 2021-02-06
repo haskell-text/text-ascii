@@ -30,6 +30,6 @@ jobs:
       run: cabal new-update
     - name: Build
       run: |
-        cabal new-configure 
-        cabal new-build
+        cabal new-configure --flags="dev" 
+        cabal new-build --flags="dev"
 
