@@ -1,6 +1,17 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE Trustworthy #-}
 
+-- |
+-- Module: Text.Ascii.QQ
+-- Copyright: (C) 2021 Koz Ross
+-- License: Apache 2.0
+-- Maintainer: Koz Ross <koz.ross@retro-freedom.nz>
+-- Stability: unstable, not subject to PVP
+-- Portability: GHC only
+--
+-- This is an internal module, and is /not/ subject to the PVP. It can change
+-- in any way, at any time, and should not be depended on unless you know
+-- /exactly/ what you are doing. You have been warned.
 module Text.Ascii.QQ where
 
 import Data.ByteString (ByteString)

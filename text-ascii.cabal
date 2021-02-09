@@ -1,6 +1,6 @@
 cabal-version:      3.0
 name:               text-ascii
-version:            1.0.0
+version:            1.0.1
 synopsis:           ASCII string and character processing.
 description:
   A total-by-default, tested and documented library for
@@ -24,8 +24,6 @@ library
   exposed-modules:
     Text.Ascii
     Text.Ascii.Char
-
-  other-modules:
     Text.Ascii.Internal
     Text.Ascii.QQ
 
