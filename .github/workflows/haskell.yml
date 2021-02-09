@@ -32,8 +32,6 @@ jobs:
       with:
         repository: phadej/cabal-extras
         path: ./cabal-extras
-    - name: Update
-      run: cabal new-update
     - name: Configure main repo
       run: cabal new-configure --flags="dev"
     - name: Configure cabal-docspec
@@ -49,18 +47,22 @@ jobs:
         key: ${{ runner.os }}-${{ matrix.ghc }}-${{ hashFiles('cabal.project.freeze') }}
     - name: Install base dependencies
       run: cabal new-build --only-dependencies --flags="dev"
-    - name: Install cabal-docspec
+    - name: Install cabal-docspec (Windows)
       run: |
         cd ./cabal-extras/cabal-docspec
         ${{ steps.haskell-setup.outputs.cabal-exe }} new-install -w ${{ steps.haskell-setup.outputs.ghc-exe }} --install-method=copy
       if: runner.os == 'Windows'
-    - name: Install cabal-docspec
+    - name: Install cabal-docspec (not Windows)
       run: |
         cd ./cabal-extras/cabal-docspec
         ${{ steps.haskell-setup.outputs.cabal-exe }} new-install -w ${{ steps.haskell-setup.outputs.ghc-exe }}
       if: runner.os != 'Windows'
     - name: Build base repo
       run: cabal new-build --flags="dev"
-    - name: Run doctests
+    - name: Run doctests (Windows)
+      run: ${{ steps.haskell-setup.outputs.cabal-store }}/bin/cabal-docspec -w ${{ steps.haskell-setup.outputs.ghc-exe }}
+      if: runner.os == 'Windows'
+    - name: Run doctests (not Windows)
       run: ${{ steps.haskell-setup.outputs.cabal-store }}/../bin/cabal-docspec -w ${{ steps.haskell-setup.outputs.ghc-exe }}
+      if: runner.os != 'Windows'
 
