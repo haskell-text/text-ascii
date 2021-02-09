@@ -21,12 +21,15 @@ module Text.Ascii.Internal where
 
 import Control.DeepSeq (NFData)
 import Data.ByteString (ByteString)
+import qualified Data.ByteString as BS
 import Data.Char (chr, isAscii)
 import Data.Coerce (coerce)
 import Data.Hashable (Hashable)
 import Data.Word (Word8)
 import GHC.Exts (IsList (Item, fromList, fromListN, toList))
 import Numeric (showHex)
+import Optics.AffineTraversal (An_AffineTraversal, atraversal)
+import Optics.At.Core (Index, IxValue, Ixed (IxKind, ix))
 import Type.Reflection (Typeable)
 
 -- | Represents valid ASCII characters, which are bytes from @0x00@ to @0x7f@.
@@ -114,6 +117,28 @@ instance IsList AsciiText where
       . coerce @[AsciiChar] @[Word8]
   {-# INLINEABLE toList #-}
   toList = coerce . toList . coerce @AsciiText @ByteString
+
+-- | @since 1.0.1
+type instance Index AsciiText = Int
+
+-- | @since 1.0.1
+type instance IxValue AsciiText = AsciiChar
+
+-- | @since 1.0.1
+instance Ixed AsciiText where
+  type IxKind AsciiText = An_AffineTraversal
+  {-# INLINEABLE ix #-}
+  ix i = atraversal get put
+    where
+      get :: AsciiText -> Either AsciiText AsciiChar
+      get (AsciiText at) = case at BS.!? i of
+        Nothing -> Left . AsciiText $ at
+        Just w8 -> Right . AsciiChar $ w8
+      put :: AsciiText -> AsciiChar -> AsciiText
+      put (AsciiText at) (AsciiChar ac) = case BS.splitAt i at of
+        (lead, end) -> case BS.uncons end of
+          Nothing -> AsciiText at
+          Just (_, end') -> AsciiText (lead <> BS.singleton ac <> end')
 
 -- Helpers
 
