@@ -60,7 +60,7 @@ jobs:
     - name: Build base repo
       run: cabal new-build --flags="dev"
     - name: Run doctests (Windows)
-      run: ${{ steps.haskell-setup.outputs.cabal-store }}/bin/cabal-docspec -w ${{ steps.haskell-setup.outputs.ghc-exe }}
+      run: ${{ steps.haskell-setup.outputs.cabal-store }}\bin\cabal-docspec.exe -w ${{ steps.haskell-setup.outputs.ghc-exe }}
       if: runner.os == 'Windows'
     - name: Run doctests (not Windows)
       run: ${{ steps.haskell-setup.outputs.cabal-store }}/../bin/cabal-docspec -w ${{ steps.haskell-setup.outputs.ghc-exe }}
