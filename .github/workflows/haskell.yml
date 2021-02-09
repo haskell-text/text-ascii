@@ -39,7 +39,7 @@ jobs:
     - name: Configure cabal-docspec
       run: |
         cd ./cabal-extras/cabal-docspec
-        cabal new-configure
+        ${{ steps.haskell-setup.outputs.cabal-exe }} new-configure
     - name: Freeze
       run: cabal freeze
     - uses: actions/cache@v2.1.3
@@ -52,7 +52,7 @@ jobs:
     - name: Install cabal-docspec dependencies
       run: |
         cd ./cabal-extras/cabal-docspec
-        cabal new-install
+        ${{ steps.haskell-setup.outputs.cabal-exe }} new-install
     - name: Build base repo
       run: cabal new-build --flags="dev"
     - name: Run doctests
