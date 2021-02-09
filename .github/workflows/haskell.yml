@@ -37,7 +37,7 @@ jobs:
     - name: Configure main repo
       run: cabal new-configure --flags="dev"
     - name: Configure cabal-docspec
-      run:
+      run: |
         cd ./cabal-extras/cabal-docspec
         cabal new-configure
     - name: Freeze
@@ -50,7 +50,7 @@ jobs:
     - name: Install base dependencies
       run: cabal new-build --only-dependencies --flags="dev"
     - name: Install cabal-docspec dependencies
-      run:
+      run: |
         cd ./cabal-extras/cabal-docspec
         cabal new-install
     - name: Build base repo
