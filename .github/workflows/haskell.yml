@@ -52,12 +52,13 @@ jobs:
     - name: Install cabal-docspec
       run: |
         cd ./cabal-extras/cabal-docspec
-        if [ "$RUNNER_OS" == "Windows" ]; then
-          ${{ steps.haskell-setup.outputs.cabal-exe }} new-install -w ${{ steps.haskell-setup.outputs.ghc-exe }} --install-method=copy
-        else
-          ${{ steps.haskell-setup.outputs.cabal-exe }} new-install -w ${{ steps.haskell-setup.outputs.ghc-exe }}
-        fi
-      shell: bash
+        ${{ steps.haskell-setup.outputs.cabal-exe }} new-install -w ${{ steps.haskell-setup.outputs.ghc-exe }} --install-method=copy
+      if: runner.os == 'Windows'
+    - name: Install cabal-docspec
+      run: |
+        cd ./cabal-extras/cabal-docspec
+        ${{ steps.haskell-setup.outputs.cabal-exe }} new-install -w ${{ steps.haskell-setup.outputs.ghc-exe }}
+      if: runner.os != 'Windows'
     - name: Build base repo
       run: cabal new-build --flags="dev"
     - name: Run doctests
