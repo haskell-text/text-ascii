@@ -14,6 +14,7 @@ jobs:
     name: ${{ matrix.os }} / ghc ${{ matrix.ghc }}
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, macOS-latest, windows-latest]
         cabal: ["latest"]
@@ -63,6 +64,9 @@ jobs:
       working-directory: cabal-extras/cabal-docspec
       run: cabal new-install --install-method=copy --installdir=${{ runner.temp }} --overwrite-policy=always
     - name: Build base repo
-      run: cabal new-build --flags="dev"
+      run: |
+        cabal new-build --flags="dev" || { # macOS + TH = QQ
+          cabal clean && cabal new-build --flags="dev"
+        }
     - name: Run doctests
-      run: ${{ runner.temp }}/cabal-docspec -v
+      run: ${{ runner.temp }}/cabal-docspec -v --trace-process --timeout 30 --strip-comments --builddir "$PWD"
