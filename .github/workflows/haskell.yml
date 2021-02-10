@@ -45,8 +45,7 @@ jobs:
     - name: Freeze
       run: |
         cabal freeze
-        cd ./cabal-extras/cabal-docspec
-        cabal freeze
+        (cd ./cabal-extras/cabal-docspec && cabal freeze)
     - uses: actions/cache@v2.1.3
       name: Cache
       with:
@@ -69,4 +68,4 @@ jobs:
           cabal clean && cabal new-build --flags="dev"
         }
     - name: Run doctests
-      run: ${{ runner.temp }}/cabal-docspec -v --trace-process --timeout 30 --strip-comments --builddir "$PWD"
+      run: ${{ runner.temp }}/cabal-docspec -v --trace-process --timeout 30 --strip-comments --builddir "${{ github.workspace }}/dist-newstyle"
