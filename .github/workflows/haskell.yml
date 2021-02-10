@@ -5,6 +5,10 @@ on:
   push:
     branches: [master, dev]
 
+defaults:
+  run:
+    shell: bash
+
 jobs:
   cabal:
     name: ${{ matrix.os }} / ghc ${{ matrix.ghc }}
@@ -35,49 +39,30 @@ jobs:
     - name: Configure main repo
       run: cabal new-configure --flags="dev"
     - name: Configure cabal-docspec
-      run: |
-        cd ./cabal-extras/cabal-docspec
-        ${{ steps.haskell-setup.outputs.cabal-exe }} new-configure -w ${{ steps.haskell-setup.outputs.ghc-exe }}
+      working-directory: cabal-extras/cabal-docspec
+      run: cabal new-configure -w ${{ steps.haskell-setup.outputs.ghc-exe }}
     - name: Freeze
       run: |
         cabal freeze
         cd ./cabal-extras/cabal-docspec
-        ${{ steps.haskell-setup.outputs.cabal-exe}} freeze
+        cabal freeze
     - uses: actions/cache@v2.1.3
-      name: Cache (Linux)
+      name: Cache
       with:
         path: |
           ${{ steps.haskell-setup.outputs.cabal-store }}
           dist-newstyle
           ./cabal-extras/cabal-docspec/dist-newstyle
         key: ${{ runner.os }}-${{ matrix.ghc }}-${{ hashFiles('cabal.project.freeze', './cabal-extras/cabal-docspec/cabal.project.freeze') }}
-      if: runner.os == 'Linux'
-    - uses: actions/cache@v2.1.3
-      name: Cache (non-Linux)
-      with:
-        path: |
-          ${{ steps.haskell-setup.outputs.cabal-store }}
-          ./cabal-extras/cabal-docspec/dist-newstyle
-        key: ${{ runner.os }}-${{ matrix.ghc }}-${{ hashFiles('cabal.project.freeze', './cabal-extras/cabal-docspec/cabal.project.freeze') }}
-      if: runner.os != 'Linux'
+        restore-keys: |
+          ${{ runner.os }}-${{ matrix.ghc }}-
+          ${{ runner.os }}-
     - name: Install base dependencies
-      run: cabal new-build --only-dependencies --flags="dev" --write-ghc-environment-files=always
-    - name: Install cabal-docspec (Windows)
-      run: |
-        cd ./cabal-extras/cabal-docspec
-        ${{ steps.haskell-setup.outputs.cabal-exe }} new-install -w ${{ steps.haskell-setup.outputs.ghc-exe }} --install-method=copy --installdir=${{ steps.haskell-setup.outputs.cabal-store }} --overwrite-policy=always
-      if: runner.os == 'Windows'
-    - name: Install cabal-docspec (not Windows)
-      run: |
-        cd ./cabal-extras/cabal-docspec
-        ${{ steps.haskell-setup.outputs.cabal-exe }} new-install -w ${{ steps.haskell-setup.outputs.ghc-exe }}
-      if: runner.os != 'Windows'
+      run: cabal new-build --only-dependencies --flags="dev"
+    - name: Install cabal-docspec
+      working-directory: cabal-extras/cabal-docspec
+      run: cabal new-install --install-method=copy --installdir=${{ runner.temp }} --overwrite-policy=always
     - name: Build base repo
-      run: cabal new-build --flags="dev" --write-ghc-environment-files=always
-    - name: Run doctests (Windows)
-      run: ${{ steps.haskell-setup.outputs.cabal-store }}\cabal-docspec.exe -w ${{ steps.haskell-setup.outputs.ghc-exe }}
-      if: runner.os == 'Windows'
-    - name: Run doctests (not Windows)
-      run: ${{ steps.haskell-setup.outputs.cabal-store }}/../bin/cabal-docspec -w ${{ steps.haskell-setup.outputs.ghc-exe }}
-      if: runner.os != 'Windows'
-
+      run: cabal new-build --flags="dev"
+    - name: Run doctests
+      run: ${{ runner.temp }}/cabal-docspec -v
