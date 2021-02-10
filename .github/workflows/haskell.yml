@@ -50,7 +50,7 @@ jobs:
     - name: Install cabal-docspec (Windows)
       run: |
         cd ./cabal-extras/cabal-docspec
-        ${{ steps.haskell-setup.outputs.cabal-exe }} new-install -w ${{ steps.haskell-setup.outputs.ghc-exe }} --install-method=copy
+        ${{ steps.haskell-setup.outputs.cabal-exe }} new-install -w ${{ steps.haskell-setup.outputs.ghc-exe }} --install-method=copy --installdir=${{ steps.haskell-setup.outputs.cabal-store }}
       if: runner.os == 'Windows'
     - name: Install cabal-docspec (not Windows)
       run: |
@@ -60,7 +60,7 @@ jobs:
     - name: Build base repo
       run: cabal new-build --flags="dev"
     - name: Run doctests (Windows)
-      run: ${{ steps.haskell-setup.outputs.cabal-store }}\bin\cabal-docspec.exe -w ${{ steps.haskell-setup.outputs.ghc-exe }}
+      run: ${{ steps.haskell-setup.outputs.cabal-store }}\cabal-docspec.exe -w ${{ steps.haskell-setup.outputs.ghc-exe }}
       if: runner.os == 'Windows'
     - name: Run doctests (not Windows)
       run: ${{ steps.haskell-setup.outputs.cabal-store }}/../bin/cabal-docspec -w ${{ steps.haskell-setup.outputs.ghc-exe }}
