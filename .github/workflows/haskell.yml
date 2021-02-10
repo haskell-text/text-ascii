@@ -56,7 +56,7 @@ jobs:
     - name: Install cabal-docspec (Windows)
       run: |
         cd ./cabal-extras/cabal-docspec
-        ${{ steps.haskell-setup.outputs.cabal-exe }} new-install -w ${{ steps.haskell-setup.outputs.ghc-exe }} --install-method=copy --installdir=${{ steps.haskell-setup.outputs.cabal-store }}
+        ${{ steps.haskell-setup.outputs.cabal-exe }} new-install -w ${{ steps.haskell-setup.outputs.ghc-exe }} --install-method=copy --installdir=${{ steps.haskell-setup.outputs.cabal-store }} --overwrite-policy=always
       if: runner.os == 'Windows'
     - name: Install cabal-docspec (not Windows)
       run: |
