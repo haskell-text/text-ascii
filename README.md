@@ -18,6 +18,12 @@ We have (without conflicting with totality) a goal to match the API of the
 `text` package exactly. If you know how to use `text`, you know how to use this
 package too.
 
+### No boolean blindness
+
+[Boolean blindness](http://dev.stephendiehl.com/hask/#boolean-blindness) is not
+a good thing, for all the reasons listed in the link. Whenever possible, we'll
+try and give more useful information than a `Bool`.
+
 ### Discoverability, documentation and user-friendliness
 
 In addition to documenting everything with Haddocks, we have over 100 doctests,
