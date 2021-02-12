@@ -62,6 +62,7 @@ module Text.Ascii
     mapAccumR,
 
     -- ** Generation and unfolding
+    replicate,
     unfoldr,
     unfoldrN,
 
@@ -84,6 +85,7 @@ module Text.Ascii
 
     -- ** Breaking into many substrings
     split,
+    chunksOf,
 
     -- ** Breaking into lines and words
     lines,
@@ -144,6 +146,7 @@ import Prelude
     (==),
     (>),
   )
+import qualified Prelude as P
 
 -- Note on pragmata
 --
@@ -159,7 +162,8 @@ import Prelude
 -- >>> :set -XOverloadedStrings
 -- >>> import Text.Ascii
 -- >>> import Text.Ascii.Char (char, upcase, AsciiCase (Lower), caseOf)
--- >>> import Prelude ((.), ($), replicate, (<>), (==), (<), (/=))
+-- >>> import Prelude ((.), ($), (<>), (==), (<), (/=), (-))
+-- >>> import qualified Prelude as Prelude
 -- >>> import Data.Maybe (Maybe (Just), fromMaybe)
 -- >>> import qualified Data.ByteString as BS
 
@@ -283,7 +287,7 @@ map = coerce BS.map
 -- ""
 -- >>> intercalate [ascii| " ~ " |] [[ascii| "nyan" |]]
 -- "nyan"
--- >>> intercalate [ascii| " ~ " |] . replicate 3 $ [ascii| "nyan" |]
+-- >>> intercalate [ascii| " ~ " |] . Prelude.replicate 3 $ [ascii| "nyan" |]
 -- "nyan ~ nyan ~ nyan"
 --
 -- /Complexity:/ \(\Theta(n)\)
@@ -317,7 +321,7 @@ intersperse = coerce BS.intersperse
 -- ["w"]
 -- >>> transpose [[ascii| "nyan" |]]
 -- ["n","y","a","n"]
--- >>> transpose . replicate 3 $ [ascii| "nyan" |]
+-- >>> transpose . Prelude.replicate 3 $ [ascii| "nyan" |]
 -- ["nnn","yyy","aaa","nnn"]
 -- >>> transpose [[ascii| "cat" |], [ascii| "boy" |], [ascii| "nyan" |]]
 -- ["cbn","aoy","tya","n"]
@@ -403,7 +407,7 @@ foldr' f x (AsciiText bs) = BS.foldr' (coerce f) x bs
 -- ""
 -- >>> concat [[ascii| "catboy" |]]
 -- "catboy"
--- >>> concat . replicate 4 $ [ascii| "nyan" |]
+-- >>> concat . Prelude.replicate 4 $ [ascii| "nyan" |]
 -- "nyannyannyannyan"
 --
 -- /Complexity:/ \(\Theta(n)\)
@@ -491,7 +495,22 @@ mapAccumR f x (AsciiText bs) = AsciiText <$> BS.mapAccumL (coerce f) x bs
 
 -- Generation and unfolding
 
--- TODO: replicate
+-- | @replicate n t@ consists of @t@ repeated \(\max \{ 0, {\tt n } \}\) times.
+--
+-- >>> replicate (-100) [ascii| "nyan" |]
+-- ""
+-- >>> replicate 0 [ascii| "nyan" |]
+-- ""
+-- >>> replicate 3 [ascii| "nyan" |]
+-- "nyannyannyan"
+--
+-- /Complexity:/ \(\Theta(n \cdot m)\)
+--
+-- @since 1.0.1
+replicate :: Int -> AsciiText -> AsciiText
+replicate n t
+  | n <= 0 = empty
+  | otherwise = concat . P.replicate n $ t
 
 -- | Similar to 'Data.List.unfoldr'. The function parameter takes a seed value,
 -- and produces either 'Nothing' (indicating that we're done) or 'Just' an
@@ -775,7 +794,42 @@ tails = coerce BS.tails
 split :: (AsciiChar -> Bool) -> AsciiText -> [AsciiText]
 split = coerce BS.splitWith
 
--- TODO: chunksOf
+-- | Splits a text into chunks of the specified length. Equivalent to repeatedly
+-- 'take'ing the specified length until exhaustion. The last item in the result
+-- may thus be shorter than requested.
+--
+-- For any @n <= 0@ and any @t@, @chunksOf n t@ yields the empty list. This is
+-- identical to the behaviour of the function of the same name in the [text
+-- package](http://hackage.haskell.org/package/text-1.2.4.1/docs/Data-Text.html#v:chunksOf),
+-- although it doesn't document this fact.
+--
+-- >>> chunksOf (-100) [ascii| "I am a catboy" |]
+-- []
+-- >>> chunksOf (-100) empty
+-- []
+-- >>> chunksOf 0 [ascii| "I am a catboy" |]
+-- []
+-- >>> chunksOf 0 empty
+-- []
+-- >>> chunksOf 1 [ascii| "I am a catboy" |]
+-- ["I"," ","a","m"," ","a"," ","c","a","t","b","o","y"]
+-- >>> chunksOf 1 empty
+-- []
+-- >>> chunksOf 2 [ascii| "I am a catboy" |]
+-- ["I ","am"," a"," c","at","bo","y"]
+-- >>> chunksOf 300 [ascii| "I am a catboy" |]
+-- ["I am a catboy"]
+--
+-- /Complexity:/ \(\Theta(n)\)
+--
+-- @since 1.0.1
+chunksOf :: Int -> AsciiText -> [AsciiText]
+chunksOf n t
+  | n <= 0 = []
+  | t == empty = []
+  | otherwise = case splitAt n t of
+    (h, t') -> h : chunksOf n t'
+
 -- Breaking into lines and words
 
 -- | Identical to the functions of the same name in the [text
@@ -921,7 +975,7 @@ words (AsciiText bs) = coerce . go $ bs
 -- ""
 -- >>> unlines [[ascii| "nyan" |]]
 -- "nyan\n"
--- >>> unlines . replicate 3 $ [ascii| "nyan" |]
+-- >>> unlines . Prelude.replicate 3 $ [ascii| "nyan" |]
 -- "nyan\nnyan\nnyan\n"
 -- >>> unlines . lines $ [ascii| "catboy goes nyan" |]
 -- "catboy goes nyan\n"
@@ -952,7 +1006,7 @@ unlines = foldMap (`snoc` [char| '\n' |])
 -- ""
 -- >>> unwords [[ascii| "nyan" |]]
 -- "nyan"
--- >>> unwords . replicate 3 $ [ascii| "nyan" |]
+-- >>> unwords . Prelude.replicate 3 $ [ascii| "nyan" |]
 -- "nyan nyan nyan"
 -- >>> unwords . words $ [ascii| "nyan\nnyan\nnyan" |]
 -- "nyan nyan nyan"
