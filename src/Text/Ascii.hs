@@ -103,6 +103,7 @@ module Text.Ascii
     partition,
 
     -- * Indexing
+    index,
     findIndex,
 
     -- * Zipping
@@ -141,10 +142,13 @@ import Prelude
     not,
     pure,
     ($),
+    (<),
     (<$>),
     (<=),
     (==),
     (>),
+    (>=),
+    (||),
   )
 import qualified Prelude as P
 
@@ -1121,7 +1125,27 @@ partition = coerce BS.partition
 
 -- Indexing
 
--- TODO: index, safe only
+-- | Retrieve the ASCII character at the given position in the text. Indexes
+-- begin from 0. If the index provided is invalid (that is, less than 0, equal
+-- to the length of the text, or greater), return 'Nothing'; otherwise, return
+-- 'Just' the character at that position.
+--
+-- >>> index [ascii| "nyan nyan nyan" |] (-100)
+-- Nothing
+-- >>> index [ascii| "nyan nyan nyan" |] 0
+-- Just '0x6e'
+-- >>> index [ascii| "nyan nyan nyan" |] 5
+-- Just '0x6e'
+-- >>> index [ascii| "nyan nyan nyan" |] 2000
+-- Nothing
+--
+-- /Complexity:/ \(\Theta(1)\)
+--
+-- @since 1.0.1
+index :: AsciiText -> Int -> Maybe AsciiChar
+index at i
+  | i < 0 || i >= length at = Nothing
+  | otherwise = Just . coerce BS.index at $ i
 
 -- | Returns 'Just' the first index in the text such that the character at that
 -- index satisfies the predicate, 'Nothing' otherwise.
