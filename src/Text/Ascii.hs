@@ -108,6 +108,7 @@ module Text.Ascii
 
     -- * Zipping
     zip,
+    zipWith,
 
     -- * Conversions
     fromText,
@@ -166,7 +167,7 @@ import qualified Prelude as P
 -- >>> :set -XOverloadedStrings
 -- >>> import Text.Ascii
 -- >>> import Text.Ascii.Char (char, upcase, AsciiCase (Lower), caseOf)
--- >>> import Prelude ((.), ($), (<>), (==), (<), (/=), (-))
+-- >>> import Prelude ((.), ($), (<>), (==), (<), (/=), (-), max)
 -- >>> import qualified Prelude as Prelude
 -- >>> import Data.Maybe (Maybe (Just), fromMaybe)
 -- >>> import qualified Data.ByteString as BS
@@ -1186,7 +1187,29 @@ findIndex = coerce BS.findIndex
 zip :: AsciiText -> AsciiText -> [(AsciiChar, AsciiChar)]
 zip = coerce BS.zip
 
--- TODO: zipWith
+-- | Combine two texts together in lockstep to produce a new text, using the
+-- provided function to combine ASCII characters at each step. The length of the
+-- result will be the minimum of the lengths of the two text arguments.
+--
+-- >>> zipWith max [ascii| "I am a catboy" |] empty
+-- ""
+-- >>> zipWith max empty [ascii| "I am a catboy" |]
+-- ""
+-- >>> zipWith max [ascii| "I am a catboy" |] [ascii| "Nyan nyan nyan nyan nyan" |]
+-- "Nyan nycntnyy"
+--
+-- /Complexity:/ \(\Theta(n)\)
+--
+-- @since 1.0.1
+zipWith ::
+  (AsciiChar -> AsciiChar -> AsciiChar) -> AsciiText -> AsciiText -> AsciiText
+zipWith f t1 t2 = unfoldr go (t1, t2)
+  where
+    go :: (AsciiText, AsciiText) -> Maybe (AsciiChar, (AsciiText, AsciiText))
+    go (acc1, acc2) = do
+      (h1, t1') <- uncons acc1
+      (h2, t2') <- uncons acc2
+      pure (f h1 h2, (t1', t2'))
 
 -- Conversions
 
