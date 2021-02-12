@@ -778,39 +778,54 @@ split = coerce BS.splitWith
 -- TODO: chunksOf
 -- Breaking into lines and words
 
--- | Separates the argument into pieces, with LF characters (0x0a) as
+-- | Identical to the functions of the same name in the [text
+-- package](http://hackage.haskell.org/package/text-1.2.4.1/docs/Data-Text.html#v:lines),
+-- and [the
+-- Prelude](https://hackage.haskell.org/package/base-4.14.1.0/docs/Prelude.html#v:lines).
+-- Specifically, separates the argument into pieces, with LF characters (0x0a) as
 -- separators. A single trailing LF is ignored. None of the final results
 -- contain LF.
 --
--- = Note
+-- We chose to follow the same semantics for this function as the text package
+-- and the Prelude. This has some consequences,
+-- which the documentation of both the text package and the Prelude does not
+-- properly explain. We list them here - bear these in mind when using this
+-- function, as well as 'unlines':
 --
--- This behaviour is distinct from @'split' ([char| '\n' |] '==')@. Furthermore,
--- it does not take into account the platform-specific nature of newlines.
--- Lastly, it is /not/ the case that @'lines' '.' 'unlines' = 'unlines' '.' 'lines'
--- = 'Prelude.id'@.
---
--- While this is arguably undesirable, it is the same behaviour as exhibited by the
--- function of the same name in
--- [text](http://hackage.haskell.org/package/text-1.2.4.1/docs/src/Data.Text.html#lines),
--- as well as [the
--- Prelude](https://hackage.haskell.org/package/base-4.14.1.0/docs/src/Data.OldList.html#lines).
--- Furthermore, we can also argue that platform-specific behaviour is undesirable here, as data could
--- use newlines from /several/ platform conventions simultaneously. Therefore,
--- we replicate, and document, these behavioural precedents here.
---
--- Keep all this in mind when using this function, as well as its related 'unlines'
--- function.
+-- * No platform-specific concept of a \'newline\' is ever used by this
+-- function. Separation is done on LF, and /only/ LF, regardless of platform.
+-- The documentation in both the text package and the Prelude confusingly refers
+-- to \'newline characters\', which is a category error. We thus specify that LF
+-- is the character being split on, rather than mentioning \'newlines\' in any
+-- way, shape or form.
+-- * @'unlines' '.' 'lines'@ is /not/ the same as @'Prelude.id'@. This is
+-- misleadingly described in the Prelude, which claims that (its version of)
+-- @unlines@ is \'an inverse operation\' to (its version of) @lines@. For a
+-- precise explanation of why this is the case, please see the documentation for
+-- 'unlines'.
+-- * @'lines'@ is not the same as @'split' (['char'| \'\n\' |] '==')@. See the
+-- doctests below for a demonstration of how they differ.
 --
 -- >>> lines empty
 -- []
+-- >>> split ([char| '\n' |] ==) empty
+-- []
 -- >>> lines [ascii| "catboy goes nyan" |]
 -- ["catboy goes nyan"]
--- >>> lines [ascii| "\ncatboy\n\n\ngoes\n\nnyan\n\n" |]
--- ["","catboy","","","goes","","nyan",""]
+-- >>> split ([char| '\n' |] ==) [ascii| "catboy goes nyan" |]
+-- ["catboy goes nyan"]
 -- >>> lines [ascii| "catboy goes nyan\n" |]
 -- ["catboy goes nyan"]
+-- >>> split ([char| '\n' |] ==) [ascii| "catboy goes nyan\n" |]
+-- ["catboy goes nyan",""]
+-- >>> lines [ascii| "\ncatboy\n\n\ngoes\n\nnyan\n\n" |]
+-- ["","catboy","","","goes","","nyan",""]
+-- >>> split ([char| '\n' |] ==) [ascii| "\ncatboy\n\n\ngoes\n\nnyan\n\n" |]
+-- ["","catboy","","","goes","","nyan","",""]
 -- >>> lines [ascii| "\r\ncatboy\r\ngoes\r\nnyan\r\n" |]
 -- ["\r","catboy\r","goes\r","nyan\r"]
+-- >>> split ([char| '\n' |] ==) [ascii| "\r\ncatboy\r\ngoes\r\nnyan\r\n" |]
+-- ["\r","catboy\r","goes\r","nyan\r",""]
 --
 -- /Complexity:/ \(\Theta(n)\)
 --
@@ -829,10 +844,13 @@ lines (AsciiText bs) = coerce . go $ bs
             Nothing -> []
             Just (_, t') -> go t'
 
--- | Separates the argument into pieces, with (non-empty sequences of) word
--- separator characters as separators.
---
--- A 'word separator character' is any of the following:
+-- | Identical to the functions of the same name in the [text
+-- package](http://hackage.haskell.org/package/text-1.2.4.1/docs/Data-Text.html#v:words)
+-- and [the
+-- Prelude](https://hackage.haskell.org/package/base-4.14.1.0/docs/Prelude.html#v:words).
+-- Specifically, separates the argument into pieces, with (non-empty sequences
+-- of) word separator characters as separators. A \'word separator character\'
+-- is any of the following:
 --
 -- * TAB (0x09)
 -- * LF (0x0a)
@@ -844,16 +862,12 @@ lines (AsciiText bs) = coerce . go $ bs
 -- None of the final results contain any word separator characters. Any sequence
 -- of leading, or trailing, word separator characters will be ignored.
 --
--- = Note
---
--- It is /not/ the case that @'words' '.' 'unwords' = 'unwords' '.' 'words' =
--- 'Prelude.id'@. This is arguably undesirable behaviour; however, it is
--- identical to the behaviour of the function of the same name in
--- [text](http://hackage.haskell.org/package/text-1.2.4.1/docs/src/Data.Text.html#words),
--- as well as [the
--- Prelude](https://hackage.haskell.org/package/base-4.14.1.0/docs/src/Data.OldList.html#words).
--- Thus, we decided to replicate, and document, this behaviour here. Keep this
--- in mind when using this function, as well as the related 'unwords'.
+-- We chose to follow the same semantics for this function as the text package
+-- and the Prelude. This has the consequence that @'unwords' '.' 'words'@ is
+-- /not/ the same as 'Prelude.id', although the documentation for the Prelude
+-- confusingly describes (its version of) @unwords@ as an \'inverse operation\'
+-- to (its version of) @words@. See the documentation for 'unwords' for an
+-- explanation of why this is the case.
 --
 -- >>> words empty
 -- []
@@ -881,25 +895,27 @@ words (AsciiText bs) = coerce . go $ bs
       | 9 <= w8 && w8 <= 13 = True
       | otherwise = False
 
--- | Appends an LF character to each of the texts, then concatenates. Equivalent
+-- | Identical to the functions of the same name in the [text
+-- package](http://hackage.haskell.org/package/text-1.2.4.1/docs/Data-Text.html#v:unlines)
+-- and [the
+-- Prelude](https://hackage.haskell.org/package/base-4.14.1.0/docs/Prelude.html#v:unlines).
+-- Specifically, appends an LF character to each of the texts, then concatenates. Equivalent
 -- to @'foldMap' (`'snoc'` [char| '\n' |])@.
 --
--- = Note
+-- We chose to follow the same semantics for this function as the text package
+-- and the Prelude. This has some consequences, which the documentation of both
+-- the text package and the Prelude does not properly explain. We list them here
+-- - bear these in mind when using this function, as well as 'lines':
 --
--- This function does not take into account the platform-specific nature of
--- newlines. It is also not the case that @'lines' '.' 'unlines' = 'unlines' '.'
--- 'lines' = 'Prelude.id'@.
---
--- While this is arguably undesirable, it is the same behaviour as exhibited by
--- the function of the same name in
--- [text](http://hackage.haskell.org/package/text-1.2.4.1/docs/src/Data.Text.html#unlines),
--- as well as [the
--- Prelude](https://hackage.haskell.org/package/base-4.14.1.0/docs/src/Data.OldList.html#unlines).
--- Therefore, we decided to replicate, and document, these behavioural
--- precedents here.
---
--- Keep all this in mind when using this function, as well as its related
--- 'lines' function.
+-- * No platform-specific concept of a \'newline\' is ever used by this
+-- function. The documentation in both the text package and the Prelude
+-- confusing refer to appending a \'terminating newline\', which is only a
+-- correct statement on platforms where a newline is LF. We thus specify that we
+-- append LF, rather than mentioning \'newlines\' in any way, shape or form.
+-- * @'unlines' '.' 'lines'@ is /not/ the same as @'Prelude.id'@. This is
+-- misleadingly described in the Prelude, which claims that (its version of)
+-- @unlines@ is \'an inverse operation\' to (its version of) @lines@. See the
+-- doctests below for a demonstration of this.
 --
 -- >>> unlines []
 -- ""
@@ -907,6 +923,8 @@ words (AsciiText bs) = coerce . go $ bs
 -- "nyan\n"
 -- >>> unlines . replicate 3 $ [ascii| "nyan" |]
 -- "nyan\nnyan\nnyan\n"
+-- >>> unlines . lines $ [ascii| "catboy goes nyan" |]
+-- "catboy goes nyan\n"
 --
 -- /Complexity:/ \(\Theta(n)\)
 --
@@ -916,25 +934,27 @@ words (AsciiText bs) = coerce . go $ bs
 unlines :: (Foldable f) => f AsciiText -> AsciiText
 unlines = foldMap (`snoc` [char| '\n' |])
 
--- | Links together adjacent texts with a Space character. Equivalent to
+-- | Identical to the functions of the same name in the [text
+-- package](http://hackage.haskell.org/package/text-1.2.4.1/docs/Data-Text.html#v:unwords)
+-- and [the
+-- Prelude](https://hackage.haskell.org/package/base-4.14.1.0/docs/Prelude.html#v:unwords).
+-- Specifically, links together adjacent texts with a Space character. Equivalent to
 -- @'intercalate' [ascii| " " |]@.
 --
--- = Note
---
--- It is /not/ the case that @'words' '.' 'unwords' = 'unwords' '.' 'words' =
--- 'Prelude.id'@. This is arguably undesirable behaviour; however it is
--- identical to the behaviour of the function of the same name in [text](http://hackage.haskell.org/package/text-1.2.4.1/docs/src/Data.Text.html#unwords),
--- as well as [the Prelude](https://hackage.haskell.org/package/base-4.14.1.0/docs/src/Data.OldList.html#unwords).
--- Thus, we decided to replicate, and document, this behaviour here, especially
--- as the documentation of both of the corresponding functions is somewhat
--- unclear on this matter. Keep this in mind when using this function, as well
--- as the related 'words'.
+-- We chose to follow the same semantics for this function as the text package
+-- and the Prelude. This has the consequence that @'unwords' '.' 'words'@ is
+-- /not/ the same as 'Prelude.id', although the documentation for the Prelude
+-- confusingly describes (its version of) @unwords@ as an \'inverse operation\'
+-- to (its version of) @words@. See the doctests below for a demonstration of
+-- this.
 --
 -- >>> unwords []
 -- ""
 -- >>> unwords [[ascii| "nyan" |]]
 -- "nyan"
 -- >>> unwords . replicate 3 $ [ascii| "nyan" |]
+-- "nyan nyan nyan"
+-- >>> unwords . words $ [ascii| "nyan\nnyan\nnyan" |]
 -- "nyan nyan nyan"
 --
 -- /Complexity:/ \(\Theta(n)\)
