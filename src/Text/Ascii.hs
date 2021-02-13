@@ -41,6 +41,11 @@ module Text.Ascii
     transpose,
     reverse,
 
+    -- ** Justification
+    justifyLeft,
+    justifyRight,
+    center,
+
     -- * Folds
     foldl,
     foldl',
@@ -143,9 +148,11 @@ import Prelude
     not,
     pure,
     ($),
+    (-),
     (<),
     (<$>),
     (<=),
+    (<>),
     (==),
     (>),
     (>=),
@@ -352,7 +359,74 @@ transpose = coerce BS.transpose
 reverse :: AsciiText -> AsciiText
 reverse = coerce BS.reverse
 
--- TODO: Replace, justifyLeft, justifyRight, center
+-- TODO: Replace
+
+-- | @justifyLeft n c t@ produces a result of length \(\max \{ {\tt n }, {\tt length} \; {\tt t} \}\),
+-- consisting of a copy of @t@ followed by (zero or more) copies
+-- of @c@.
+--
+-- >>> justifyLeft (-100) [char| '~' |] [ascii| "nyan" |]
+-- "nyan"
+-- >>> justifyLeft 4 [char| '~' |] [ascii| "nyan" |]
+-- "nyan"
+-- >>> justifyLeft 10 [char| '~' |] [ascii| "nyan" |]
+-- "nyan~~~~~~"
+--
+-- /Complexity:/ \(\Theta(n)\)
+--
+-- @since 1.0.1
+justifyLeft :: Int -> AsciiChar -> AsciiText -> AsciiText
+justifyLeft n c t = t <> replicate (n - length t) (singleton c)
+
+-- | @justifyRight n c t@ produces a result of length \(\max \{ {\tt n }, {\tt length} \; {\tt t} \}\),
+-- consisting of (zero or more) copies of @c@ followed by a copy of @t@.
+--
+-- >>> justifyRight (-100) [char| '~' |] [ascii| "nyan" |]
+-- "nyan"
+-- >>> justifyRight 4 [char| '~' |] [ascii| "nyan" |]
+-- "nyan"
+-- >>> justifyRight 10 [char| '~' |] [ascii| "nyan" |]
+-- "~~~~~~nyan"
+--
+-- /Complexity:/ \(\Theta(n)\)
+--
+-- @since 1.0.1
+justifyRight :: Int -> AsciiChar -> AsciiText -> AsciiText
+justifyRight n c t = replicate (n - length t) (singleton c) <> t
+
+-- | @center n c t@ produces a result of length \({\tt k } = \max \{ {\tt n }, {\tt length} \; {\tt t} \}\),
+-- consisting of:
+--
+-- * \(\lceil \frac{{\tt k} - {\tt length} \; {\tt t}}{2} \rceil\) copies of @c@;
+-- followed by
+-- * A copy of @t@; followed by
+-- * Zero or more copies of @c@
+--
+-- This means that the centering is \'left-biased\'. This mimicks the behaviour
+-- of the function of the same name in the [text
+-- package](http://hackage.haskell.org/package/text-1.2.4.1/docs/Data-Text.html#v:center),
+-- although that function's documenation does not describe this behaviour.
+--
+-- >>> center (-100) [char| '~' |] [ascii| "nyan" |]
+-- "nyan"
+-- >>> center 4 [char| '~' |] [ascii| "nyan" |]
+-- "nyan"
+-- >>> center 5 [char| '~' |] [ascii| "nyan" |]
+-- "~nyan"
+-- >>> center 6 [char| '~' |] [ascii| "nyan" |]
+-- "~nyan~"
+--
+-- /Complexity:/ \(\Theta(n)\)
+--
+-- @since 1.0.1
+center :: Int -> AsciiChar -> AsciiText -> AsciiText
+center n c t
+  | n <= length t = t
+  | P.even (n - length t) = copied <> t <> copied
+  | otherwise = copied <> singleton c <> t <> copied
+  where
+    copied :: AsciiText
+    copied = replicate ((n - length t) `P.div` 2) (singleton c)
 
 -- Folds
 

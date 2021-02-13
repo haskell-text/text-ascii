@@ -9,7 +9,7 @@
 * Drop Parsec in favour of Megaparsec.
 * Add `FoldCase` instances for `AsciiChar` and `AsciiText`.
 * Implement `lines`, `unlines`, `words`, `unwords`, `replicate`, `chunksOf`, 
-  `index`, `zipWith` for `AsciiText`.
+  `index`, `zipWith`, `justifyLeft`, `justifyRight`, `center` for `AsciiText`.
 
 ## 1.0.0 -- 2021-02-07
 
