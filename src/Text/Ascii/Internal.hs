@@ -22,6 +22,7 @@ module Text.Ascii.Internal where
 import Control.DeepSeq (NFData)
 import Data.ByteString (ByteString)
 import qualified Data.ByteString as BS
+import Data.CaseInsensitive (FoldCase (foldCase))
 import Data.Char (chr, isAscii)
 import Data.Coerce (coerce)
 import Data.Hashable (Hashable)
@@ -59,8 +60,17 @@ instance Show AsciiChar where
 
 -- | @since 1.0.0
 instance Bounded AsciiChar where
+  {-# INLINEABLE minBound #-}
   minBound = AsciiChar 0
+  {-# INLINEABLE maxBound #-}
   maxBound = AsciiChar 127
+
+-- | @since 1.0.1
+instance FoldCase AsciiChar where
+  {-# INLINEABLE foldCase #-}
+  foldCase ac@(AsciiChar w8)
+    | 65 <= w8 && w8 <= 90 = AsciiChar (w8 + 32)
+    | otherwise = ac
 
 -- | View an 'AsciiChar' as its underlying byte. You can pattern match on this,
 -- but since there are more bytes than valid ASCII characters, you cannot use
@@ -139,6 +149,15 @@ instance Ixed AsciiText where
         (lead, end) -> case BS.uncons end of
           Nothing -> AsciiText at
           Just (_, end') -> AsciiText (lead <> BS.singleton ac <> end')
+
+instance FoldCase AsciiText where
+  {-# INLINEABLE foldCase #-}
+  foldCase (AsciiText bs) = AsciiText . BS.map go $ bs
+    where
+      go :: Word8 -> Word8
+      go w8
+        | 65 <= w8 && w8 <= 90 = w8 + 32
+        | otherwise = w8
 
 -- Helpers
 

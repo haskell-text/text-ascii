@@ -4,6 +4,7 @@
 
 * Expose `Text.Ascii.Internal` and `Text.Ascii.QQ`.
 * Add `Ixed` instance (and supporting type instances) for `AsciiText`.
+* Add `FoldCase` instances for `AsciiChar` and `AsciiText`.
 * Implement `lines`, `unlines`, `words`, `unwords`, `replicate`, `chunksOf`, 
   `index`, `zipWith` for `AsciiText`.
 
