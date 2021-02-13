@@ -24,6 +24,7 @@ import Data.Char
     ord,
   )
 import Data.Functor (void)
+import Data.Void (Void)
 import GHC.Exts (IsList (fromList))
 import Language.Haskell.TH.Quote (QuasiQuoter (QuasiQuoter))
 import Language.Haskell.TH.Syntax
@@ -35,7 +36,7 @@ import Language.Haskell.TH.Syntax
     Type,
   )
 import Text.Ascii.Internal (AsciiChar (AsciiChar), AsciiText (AsciiText))
-import Text.Parsec
+import Text.Megaparsec
   ( Parsec,
     between,
     eof,
@@ -44,10 +45,10 @@ import Text.Parsec
     oneOf,
     parse,
     satisfy,
-    spaces,
+    single,
     try,
   )
-import qualified Text.Parsec as Parsec
+import Text.Megaparsec.Char (space)
 
 -- $setup
 -- >>> :set -XQuasiQuotes
@@ -95,12 +96,12 @@ asciiQQ input = case parse (between open close go) "" input of
       . BS.unpack
       $ result
   where
-    open :: Parsec String () ()
-    open = spaces *> (void . Parsec.char $ '"')
-    close :: Parsec String () ()
-    close = Parsec.char '"' *> spaces *> eof
-    go :: Parsec String () ByteString
-    go = BS.pack <$> manyTill asciiByte (lookAhead . try . Parsec.char $ '"')
+    open :: Parsec Void String ()
+    open = space *> (void . single $ '"')
+    close :: Parsec Void String ()
+    close = single '"' *> space *> eof
+    go :: Parsec Void String ByteString
+    go = BS.pack <$> manyTill asciiByte (lookAhead . try . single $ '"')
     asciiByte = do
       c <- satisfy isAscii
       case c of
@@ -125,11 +126,11 @@ charQQ input = case parse (between open close go) "" input of
   Right result ->
     pure . AppE (ConE 'AsciiChar) . LitE . IntegerL . fromIntegral $ result
   where
-    open :: Parsec String () ()
-    open = spaces *> (void . Parsec.char $ '\'')
-    close :: Parsec String () ()
-    close = Parsec.char '\'' *> spaces *> eof
-    go :: Parsec String () Int
+    open :: Parsec Void String ()
+    open = space *> (void . single $ '\'')
+    close :: Parsec Void String ()
+    close = single '\'' *> space *> eof
+    go :: Parsec Void String Int
     go = do
       c1 <- satisfy isValidLead
       case c1 of
