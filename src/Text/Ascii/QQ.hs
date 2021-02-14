@@ -49,6 +49,7 @@ import Text.Megaparsec
     try,
   )
 import Text.Megaparsec.Char (space)
+import Text.Megaparsec.Error (errorBundlePretty)
 
 -- $setup
 -- >>> :set -XQuasiQuotes
@@ -86,7 +87,7 @@ ascii = QuasiQuoter asciiQQ (errPat "ascii") (errType "ascii") (errDec "ascii")
 
 asciiQQ :: String -> Q Exp
 asciiQQ input = case parse (between open close go) "" input of
-  Left err -> fail . show $ err
+  Left err -> fail . errorBundlePretty $ err
   Right result ->
     pure
       . AppE (ConE 'AsciiText)
@@ -122,7 +123,7 @@ asciiQQ input = case parse (between open close go) "" input of
 
 charQQ :: String -> Q Exp
 charQQ input = case parse (between open close go) "" input of
-  Left err -> fail . show $ err
+  Left err -> fail . errorBundlePretty $ err
   Right result ->
     pure . AppE (ConE 'AsciiChar) . LitE . IntegerL . fromIntegral $ result
   where
