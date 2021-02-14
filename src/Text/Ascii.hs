@@ -107,6 +107,7 @@ module Text.Ascii
     -- * View patterns
     stripPrefix,
     stripSuffix,
+    commonPrefixes,
 
     -- * Searching
     filter,
@@ -141,6 +142,7 @@ import qualified Data.ByteString as BS
 import Data.Char (isAscii)
 import Data.Coerce (coerce)
 import Data.Foldable (Foldable (foldMap))
+import qualified Data.Foldable as F
 import Data.Maybe (Maybe (Just, Nothing))
 import Data.Text (Text)
 import qualified Data.Text as T
@@ -154,6 +156,7 @@ import Prelude
     not,
     pure,
     ($),
+    (+),
     (-),
     (<),
     (<$>),
@@ -1269,7 +1272,37 @@ stripPrefix = coerce BS.stripPrefix
 stripSuffix :: AsciiText -> AsciiText -> Maybe AsciiText
 stripSuffix = coerce BS.stripSuffix
 
--- TODO: stripInfix, commonPrefixes
+-- TODO: stripInfix
+
+-- | Find the longest non-empty common prefix of the arguments and return it,
+-- along with the remaining suffixes of both arguments. If the arguments lack a
+-- common, non-empty prefix, returns 'Nothing'.
+--
+-- >>> commonPrefixes empty [ascii| "catboy" |]
+-- Nothing
+-- >>> commonPrefixes [ascii| "catboy" |] empty
+-- Nothing
+-- >>> commonPrefixes [ascii| "catboy" |] [ascii| "nyan" |]
+-- Nothing
+-- >>> commonPrefixes [ascii| "catboy" |] [ascii| "catboy" |]
+-- Just ("catboy","","")
+-- >>> commonPrefixes [ascii| "nyan" |] [ascii| "nyan nyan" |]
+-- Just ("nyan",""," nyan")
+--
+-- /Complexity:/ \(\Theta(n)\)
+--
+-- @since 1.0.1
+commonPrefixes :: AsciiText -> AsciiText -> Maybe (AsciiText, AsciiText, AsciiText)
+commonPrefixes (AsciiText t1) (AsciiText t2) =
+  go2 <$> F.foldl' go Nothing [0 .. P.min (BS.length t1) (BS.length t2) - 1]
+  where
+    go :: Maybe Int -> Int -> Maybe Int
+    go acc i
+      | BS.index t1 i == BS.index t2 i = Just i
+      | otherwise = acc
+    go2 :: Int -> (AsciiText, AsciiText, AsciiText)
+    go2 i = case BS.splitAt (i + 1) t1 of
+      (h, t) -> coerce (h, t, BS.drop (i + 1) t2)
 
 -- Searching
 

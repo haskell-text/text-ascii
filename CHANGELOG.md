@@ -10,7 +10,8 @@
 * Add `FoldCase` instances for `AsciiChar` and `AsciiText`.
 * Implement `lines`, `unlines`, `words`, `unwords`, `replicate`, `chunksOf`, 
   `index`, `zipWith`, `justifyLeft`, `justifyRight`, `center`, `takeEnd`, 
-  `dropEnd`, `dropAround`, `strip`, `stripStart`, `stripEnd` for `AsciiText`.
+  `dropEnd`, `dropAround`, `strip`, `stripStart`, `stripEnd`, `commonPrefixes` 
+  for `AsciiText`.
 
 ## 1.0.0 -- 2021-02-07
 
