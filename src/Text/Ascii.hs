@@ -75,11 +75,17 @@ module Text.Ascii
 
     -- ** Breaking strings
     take,
+    takeEnd,
     drop,
+    dropEnd,
     takeWhile,
     takeWhileEnd,
     dropWhile,
     dropWhileEnd,
+    dropAround,
+    strip,
+    stripStart,
+    stripEnd,
     splitAt,
     break,
     span,
@@ -618,14 +624,14 @@ unfoldrN :: Int -> (a -> Maybe (AsciiChar, a)) -> a -> (AsciiText, Maybe a)
 unfoldrN n f = first AsciiText . BS.unfoldrN n (coerce f)
 
 -- | @take n t@ returns the prefix of @t@ with length
--- \(\min \{ \max \{ 0, {\tt n}\}, {\tt length} \; {\tt t} \}\)
+-- \(\min \{ \max \{ 0, {\tt n}\}, {\tt length} \; {\tt t} \}\).
 --
 -- >>> take (-100) [ascii| "catboy" |]
 -- ""
 -- >>> take 0 [ascii| "catboy" |]
 -- ""
--- >>> take 3 [ascii| "catboy" |]
--- "cat"
+-- >>> take 4 [ascii| "catboy" |]
+-- "catb"
 -- >>> take 1000 [ascii| "catboy" |]
 -- "catboy"
 --
@@ -636,17 +642,33 @@ unfoldrN n f = first AsciiText . BS.unfoldrN n (coerce f)
 take :: Int -> AsciiText -> AsciiText
 take = coerce BS.take
 
--- TODO: takeEnd
+-- | @takeEnd n t@ returns the suffix of @t@ with length
+-- \(\min \{ \max \{0, {\tt n} \}, {\tt length} \; {\tt t} \}\).
+--
+-- >>> takeEnd (-100) [ascii| "catboy" |]
+-- ""
+-- >>> takeEnd 0 [ascii| "catboy" |]
+-- ""
+-- >>> takeEnd 4 [ascii| "catboy" |]
+-- "tboy"
+-- >>> takeEnd 1000 [ascii| "catboy" |]
+-- "catboy"
+--
+-- /Complexity:] \(\Theta(1)\)
+--
+-- @since 1.0.1
+takeEnd :: Int -> AsciiText -> AsciiText
+takeEnd n t = drop (length t - n) t
 
 -- | @drop n t@ returns the suffix of @t@ with length
--- \(\max \{ 0, \min \{ {\tt length} \; {\tt t}, {\tt length} \; {\tt t} - {\tt n} \} \}\)
+-- \(\max \{ 0, \min \{ {\tt length} \; {\tt t}, {\tt length} \; {\tt t} - {\tt n} \} \}\).
 --
 -- >>> drop (-100) [ascii| "catboy" |]
 -- "catboy"
 -- >>> drop 0 [ascii| "catboy" |]
 -- "catboy"
--- >>> drop 3 [ascii| "catboy" |]
--- "boy"
+-- >>> drop 4 [ascii| "catboy" |]
+-- "oy"
 -- >>> drop 1000 [ascii| "catboy" |]
 -- ""
 --
@@ -657,7 +679,23 @@ take = coerce BS.take
 drop :: Int -> AsciiText -> AsciiText
 drop = coerce BS.drop
 
--- TODO: dropEnd
+-- | @dropEnd n t@ returns the prefix of @t@ with length
+-- \(\max \{ 0, \min \{ {\tt length} \; {\tt t}, {\tt length} \; {\tt t} - {\tt n} \} \}\).
+--
+-- >>> dropEnd (-100) [ascii| "catboy" |]
+-- "catboy"
+-- >>> dropEnd 0 [ascii| "catboy" |]
+-- "catboy"
+-- >>> dropEnd 4 [ascii| "catboy" |]
+-- "ca"
+-- >>> dropEnd 1000 [ascii| "catboy" |]
+-- ""
+--
+-- /Complexity:/ \(\Theta(1)\)
+--
+-- @since 1.0.1
+dropEnd :: Int -> AsciiText -> AsciiText
+dropEnd n t = take (length t - n) t
 
 -- | @takeWhile p t@ returns the longest prefix of @t@ of characters that
 -- satisfy @p@.
@@ -718,7 +756,100 @@ dropWhile f (AsciiText at) = AsciiText . BS.dropWhile (coerce f) $ at
 dropWhileEnd :: (AsciiChar -> Bool) -> AsciiText -> AsciiText
 dropWhileEnd f = AsciiText . BS.dropWhileEnd (coerce f) . coerce
 
--- TODO: dropAround, strip, stripStart, stripEnd
+-- | @dropAround p@ is equivalent to @'dropWhile' p '.' 'dropWhileEnd' p@.
+--
+-- >>> dropAround ((Just Lower ==) . caseOf) empty
+-- ""
+-- >>> dropAround ((Just Lower ==) . caseOf) [ascii| "catboy goes nyan" |]
+-- " goes "
+--
+-- /Complexity:/ \(\Theta(n)\)
+--
+-- @since 1.0.1
+dropAround :: (AsciiChar -> Bool) -> AsciiText -> AsciiText
+dropAround p = dropWhile p . dropWhileEnd p
+
+-- | Remove the longest prefix /and/ suffix of the input comprised entirely of
+-- whitespace characters. We define a \'whitespace character\' as any of the
+-- following:
+--
+-- * TAB (0x09)
+-- * LF (0x0a)
+-- * VT (0x0b)
+-- * FF (0x0c)
+-- * CR (0x0d)
+-- * Space (0x20)
+--
+-- >>> strip empty
+-- ""
+-- >>> strip [ascii| "catboy goes nyan" |]
+-- "catboy goes nyan"
+-- >>> strip [ascii| "\n\n    \tcatboy goes nyan" |]
+-- "catboy goes nyan"
+-- >>> strip [ascii| "catboy goes nyan   \t\t\n" |]
+-- "catboy goes nyan"
+-- >>> strip [ascii| "\n\n    \tcatboy goes nyan   \t\t\n" |]
+-- "catboy goes nyan"
+--
+-- /Complexity:/ \(\Theta(n)\)
+--
+-- @since 1.0.1
+strip :: AsciiText -> AsciiText
+strip = dropAround isSpace
+
+-- | Remove the longest prefix of the input comprised entirely of whitespace
+-- characters. We define a \'whitespace character\' as any of the following:
+--
+-- * TAB (0x09)
+-- * LF (0x0a)
+-- * VT (0x0b)
+-- * FF (0x0c)
+-- * CR (0x0d)
+-- * Space (0x20)
+--
+-- >>> stripStart empty
+-- ""
+-- >>> stripStart [ascii| "catboy goes nyan" |]
+-- "catboy goes nyan"
+-- >>> stripStart [ascii| "\n\n    \tcatboy goes nyan" |]
+-- "catboy goes nyan"
+-- >>> stripStart [ascii| "catboy goes nyan   \t\t\n" |]
+-- "catboy goes nyan   \t\t\n"
+-- >>> stripStart [ascii| "\n\n    \tcatboy goes nyan   \t\t\n" |]
+-- "catboy goes nyan   \t\t\n"
+--
+-- /Complexity:/ \(\Theta(n)\)
+--
+-- @since 1.0.1
+stripStart :: AsciiText -> AsciiText
+stripStart = dropWhile isSpace
+
+-- | Remove the longest suffix of the input comprised entirely of whitespace
+-- characters. We define a \'whitespace character\' as any of the following:
+--
+-- * TAB (0x09)
+-- * LF (0x0a)
+-- * VT (0x0b)
+-- * FF (0x0c)
+-- * CR (0x0d)
+-- * Space (0x20)
+--
+-- >>> stripEnd empty
+-- ""
+-- >>> stripEnd [ascii| "catboy goes nyan" |]
+-- "catboy goes nyan"
+-- >>> stripEnd [ascii| "\n\n    \tcatboy goes nyan" |]
+-- "\n\n    \tcatboy goes nyan"
+-- >>> stripEnd [ascii| "catboy goes nyan   \t\t\n" |]
+-- "catboy goes nyan"
+-- >>> stripEnd [ascii| "\n\n    \tcatboy goes nyan   \t\t\n" |]
+-- "\n\n    \tcatboy goes nyan"
+--
+-- /Complexity:/ \(\Theta(n)\)
+--
+-- @since 1.0.1
+stripEnd :: AsciiText -> AsciiText
+stripEnd = dropWhileEnd isSpace
 
 -- | @splitAt n t@ is equivalent to @('take' n t, 'drop' n t)@.
 --
@@ -1365,3 +1496,11 @@ textWise = prism' toText fromText
 -- @since 1.0.0
 byteStringWise :: Prism' ByteString AsciiText
 byteStringWise = prism' toByteString fromByteString
+
+-- Helpers
+
+isSpace :: AsciiChar -> Bool
+isSpace (AsciiChar w8)
+  | w8 == 32 = True
+  | 9 <= w8 && w8 <= 13 = True
+  | otherwise = False

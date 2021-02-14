@@ -26,7 +26,7 @@ package too.
 
 ### Discoverability, documentation and user-friendliness
 
-In addition to documenting everything with Haddocks, we have over 150 doctests,
+In addition to documenting everything with Haddocks, we have over 200 doctests,
 which provide _executable_ examples of how the API can be used, and how it will
 behave. We aim to clarify _every_ corner case left by the documentation of
 `text`, and care strongly about making the API easy to follow, learn and
