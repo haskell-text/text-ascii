@@ -26,6 +26,7 @@ library
     Text.Ascii.Char
     Text.Ascii.Internal
     Text.Ascii.QQ
+    Text.Ascii.Unsafe
 
   build-depends:
     , base              >=4.12     && <5

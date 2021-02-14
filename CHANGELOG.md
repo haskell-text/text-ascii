@@ -12,6 +12,8 @@
   `index`, `zipWith`, `justifyLeft`, `justifyRight`, `center`, `takeEnd`, 
   `dropEnd`, `dropAround`, `strip`, `stripStart`, `stripEnd`, `commonPrefixes` 
   for `AsciiText`.
+* Add `Unsafe` module containing an `Unsafe` wrapper, plus instances and
+  functions.
 
 ## 1.0.0 -- 2021-02-07
 
