@@ -20,13 +20,13 @@ try and give more useful information than a `Bool`.
 
 ### Compatibility with the [`text`](http://hackage.haskell.org/package/text) API
 
-We have (without conflicting with totality) a goal to match the API of the
-`text` package exactly. If you know how to use `text`, you know how to use this
-package too.
+We want match the API of the `text` package exactly. If you know how to use `text`, 
+you'll know how to use this package too. Exceptions are made for places where
+`text` is either partial or boolean-blind.
 
 ### Discoverability, documentation and user-friendliness
 
-In addition to documenting everything with Haddocks, we have over 200 doctests,
+In addition to documenting everything with Haddocks, we have over 250 doctests,
 which provide _executable_ examples of how the API can be used, and how it will
 behave. We aim to clarify _every_ corner case left by the documentation of
 `text`, and care strongly about making the API easy to follow, learn and

@@ -156,11 +156,13 @@ import qualified Data.Text as T
 import Data.Text.Encoding (decodeUtf8, encodeUtf8)
 import Data.Word (Word8)
 import Optics.Coerce (coerceA, coerceB, coerceS, coerceT)
+import Optics.Getter (Getter, view)
 import Optics.Iso (Iso')
 import Optics.IxFold (IxFold)
 import Optics.IxTraversal (IxTraversal')
 import Optics.Optic (castOptic)
 import Optics.Prism (Prism', prism')
+import Optics.Review (Review, review)
 import Text.Ascii.Internal (AsciiChar (AsciiChar), AsciiText (AsciiText))
 import Text.Ascii.QQ (ascii, char)
 import Prelude
@@ -195,10 +197,17 @@ import qualified Prelude as P
 -- >>> :set -XOverloadedStrings
 -- >>> import Text.Ascii
 -- >>> import Text.Ascii.Char (char, upcase, AsciiCase (Lower), caseOf)
--- >>> import Prelude ((.), ($), (<>), (==), (<), (/=), (-), max)
+-- >>> import Prelude ((.), ($), (<>), (==), (<), (/=), (-), max, even)
 -- >>> import qualified Prelude as Prelude
 -- >>> import Data.Maybe (Maybe (Just), fromMaybe)
 -- >>> import qualified Data.ByteString as BS
+-- >>> import Optics.AffineFold (preview)
+-- >>> import Optics.Review (review)
+-- >>> import Optics.Getter (view)
+-- >>> import Optics.IxTraversal (elementOf)
+-- >>> import Optics.IxSetter (iover)
+-- >>> import Data.Bool (bool)
+-- >>> import Optics.IxFold (itoListOf)
 
 -- | The empty text.
 --
@@ -1531,6 +1540,13 @@ toByteString = coerce
 -- | A convenient demonstration of the relationship between 'toText' and
 -- 'fromText'.
 --
+-- >>> preview textWise "catboy goes nyan"
+-- Just "catboy goes nyan"
+-- >>> preview textWise "😺😺😺😺😺"
+-- Nothing
+-- >>> review textWise [ascii| "catboys are amazing" |]
+-- "catboys are amazing"
+--
 -- @since 1.0.0
 textWise :: Prism' Text AsciiText
 textWise = prism' toText fromText
@@ -1538,11 +1554,23 @@ textWise = prism' toText fromText
 -- | A convenient demonstration of the relationship between 'toByteString' and
 -- 'fromByteString'.
 --
+-- >>> preview byteStringWise "catboy goes nyan"
+-- Just "catboy goes nyan"
+-- >>> preview byteStringWise . BS.pack $ [0xff, 0xff]
+-- Nothing
+-- >>> review byteStringWise [ascii| "I love catboys" |]
+-- "I love catboys"
+--
 -- @since 1.0.0
 byteStringWise :: Prism' ByteString AsciiText
 byteStringWise = prism' toByteString fromByteString
 
 -- | Pack (or unpack) a list of ASCII characters into a text.
+--
+-- >>> view packedChars [[char| 'n' |], [char| 'y' |], [char| 'a' |], [char| 'n' |]]
+-- "nyan"
+-- >>> review packedChars [ascii| "nyan" |]
+-- ['0x6e','0x79','0x61','0x6e']
 --
 -- @since 1.0.1
 packedChars :: Iso' [AsciiChar] AsciiText
@@ -1551,6 +1579,13 @@ packedChars =
 
 -- | Traverse the individual ASCII characters in a text.
 --
+-- >>> preview (elementOf chars 0) [ascii| "I am a catboy" |]
+-- Just '0x49'
+-- >>> preview (elementOf chars 100) [ascii| "I am a catboy" |]
+-- Nothing
+-- >>> iover chars (\i x -> bool x [char| 'w' |] . even $ i) [ascii| "I am a catboy" |]
+-- "w wmwawcwtwow"
+--
 -- @since 1.0.1
 chars :: IxTraversal' Int64 AsciiText AsciiChar
 chars = coerceS . coerceT . coerceA . coerceB $ BSO.bytes @ByteString
@@ -1558,13 +1593,28 @@ chars = coerceS . coerceT . coerceA . coerceB $ BSO.bytes @ByteString
 -- | Pack (or unpack) a list of bytes into a text. This isn't as capable as
 -- 'packedChars', as that would allow construction of invalid texts.
 --
+-- >>> preview packedBytes [0x6e, 0x79, 0x61, 0x6e]
+-- Just "nyan"
+-- >>> preview packedBytes [0xff, 0xfe]
+-- Nothing
+-- >>> review packedBytes [ascii| "nyan" |]
+-- [110,121,97,110]
+--
 -- @since 1.0.1
 packedBytes :: Prism' [Word8] AsciiText
-packedBytes = castOptic . coerceA . coerceB $ BSO.packedBytes @ByteString
+packedBytes = prism' (review go) (P.fmap (view go2) . P.traverse asciify)
+  where
+    go :: Review [Word8] AsciiText
+    go = castOptic . coerceA . coerceB $ BSO.packedBytes @ByteString
+    go2 :: Getter [Word8] AsciiText
+    go2 = castOptic . coerceA . coerceB $ BSO.packedBytes @ByteString
 
 -- | Access the individual bytes in a text. This isn't as capable as 'chars', as
 -- that would allow modifications of the bytes in ways that aren't valid as
 -- ASCII.
+--
+-- >>> itoListOf bytes [ascii| "I am a catboy" |]
+-- [(0,73),(1,32),(2,97),(3,109),(4,32),(5,97),(6,32),(7,99),(8,97),(9,116),(10,98),(11,111),(12,121)]
 --
 -- @since 1.0.1
 bytes :: IxFold Int64 AsciiText Word8
@@ -1577,3 +1627,8 @@ isSpace (AsciiChar w8)
   | w8 == 32 = True
   | 9 <= w8 && w8 <= 13 = True
   | otherwise = False
+
+asciify :: Word8 -> Maybe Word8
+asciify w8
+  | w8 <= 127 = Just w8
+  | otherwise = Nothing
