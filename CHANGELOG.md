@@ -14,6 +14,7 @@
   for `AsciiText`.
 * Add `Unsafe` module containing an `Unsafe` wrapper, plus instances and
   functions.
+* Add a range of optics for `AsciiText`.
 
 ## 1.0.0 -- 2021-02-07
 

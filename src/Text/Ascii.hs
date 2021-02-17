@@ -1,6 +1,7 @@
 {-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE Trustworthy #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 
 -- |
@@ -131,6 +132,10 @@ module Text.Ascii
     -- * Optics
     textWise,
     byteStringWise,
+    packedChars,
+    chars,
+    packedBytes,
+    bytes,
   )
 where
 
@@ -139,15 +144,22 @@ import Data.Bifunctor (first)
 import Data.Bool (Bool (False, True), otherwise, (&&))
 import Data.ByteString (ByteString)
 import qualified Data.ByteString as BS
+import qualified Data.ByteString.Optics as BSO
 import Data.Char (isAscii)
 import Data.Coerce (coerce)
 import Data.Foldable (Foldable (foldMap))
 import qualified Data.Foldable as F
+import Data.Int (Int64)
 import Data.Maybe (Maybe (Just, Nothing))
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Text.Encoding (decodeUtf8, encodeUtf8)
 import Data.Word (Word8)
+import Optics.Coerce (coerceA, coerceB, coerceS, coerceT)
+import Optics.Iso (Iso')
+import Optics.IxFold (IxFold)
+import Optics.IxTraversal (IxTraversal')
+import Optics.Optic (castOptic)
 import Optics.Prism (Prism', prism')
 import Text.Ascii.Internal (AsciiChar (AsciiChar), AsciiText (AsciiText))
 import Text.Ascii.QQ (ascii, char)
@@ -1529,6 +1541,34 @@ textWise = prism' toText fromText
 -- @since 1.0.0
 byteStringWise :: Prism' ByteString AsciiText
 byteStringWise = prism' toByteString fromByteString
+
+-- | Pack (or unpack) a list of ASCII characters into a text.
+--
+-- @since 1.0.1
+packedChars :: Iso' [AsciiChar] AsciiText
+packedChars =
+  coerceS . coerceT . coerceA . coerceB $ BSO.packedBytes @ByteString
+
+-- | Traverse the individual ASCII characters in a text.
+--
+-- @since 1.0.1
+chars :: IxTraversal' Int64 AsciiText AsciiChar
+chars = coerceS . coerceT . coerceA . coerceB $ BSO.bytes @ByteString
+
+-- | Pack (or unpack) a list of bytes into a text. This isn't as capable as
+-- 'packedChars', as that would allow construction of invalid texts.
+--
+-- @since 1.0.1
+packedBytes :: Prism' [Word8] AsciiText
+packedBytes = castOptic . coerceA . coerceB $ BSO.packedBytes @ByteString
+
+-- | Access the individual bytes in a text. This isn't as capable as 'chars', as
+-- that would allow modifications of the bytes in ways that aren't valid as
+-- ASCII.
+--
+-- @since 1.0.1
+bytes :: IxFold Int64 AsciiText Word8
+bytes = castOptic . coerceS . coerceT $ BSO.bytes @ByteString
 
 -- Helpers
 
