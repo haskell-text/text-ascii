@@ -1535,7 +1535,7 @@ toText (AsciiText bs) = decodeUtf8 bs
 toByteString :: AsciiText -> ByteString
 toByteString = coerce
 
--- Prisms
+-- Optics
 
 -- | A convenient demonstration of the relationship between 'toText' and
 -- 'fromText'.
