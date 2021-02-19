@@ -1,4 +1,5 @@
 {-# LANGUAGE DerivingVia #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE Trustworthy #-}
 {-# LANGUAGE TypeApplications #-}
@@ -41,6 +42,7 @@ module Text.Ascii
     intersperse,
     transpose,
     reverse,
+    replace,
 
     -- ** Justification
     justifyLeft,
@@ -96,6 +98,7 @@ module Text.Ascii
     tails,
 
     -- ** Breaking into many substrings
+    splitOn,
     split,
     chunksOf,
 
@@ -150,6 +153,7 @@ import Data.Coerce (coerce)
 import Data.Foldable (Foldable (foldMap))
 import qualified Data.Foldable as F
 import Data.Int (Int64)
+import qualified Data.List as L
 import Data.Maybe (Maybe (Just, Nothing))
 import Data.Text (Text)
 import qualified Data.Text as T
@@ -172,6 +176,7 @@ import Prelude
     ($),
     (+),
     (-),
+    (/=),
     (<),
     (<$>),
     (<=),
@@ -331,6 +336,8 @@ map = coerce BS.map
 -- "nyan"
 -- >>> intercalate [ascii| " ~ " |] . Prelude.replicate 3 $ [ascii| "nyan" |]
 -- "nyan ~ nyan ~ nyan"
+-- >>> intercalate empty . Prelude.replicate 3 $ [ascii| "nyan" |]
+-- "nyannyannyan"
 --
 -- /Complexity:/ \(\Theta(n)\)
 --
@@ -389,7 +396,70 @@ transpose = coerce BS.transpose
 reverse :: AsciiText -> AsciiText
 reverse = coerce BS.reverse
 
--- TODO: Replace
+-- | @replace needle replacement haystack@, given a @needle@ of length \(n\) and
+-- a haystack of length \(h\), replaces each non-overlapping occurrence of
+-- @needle@ in @haystack@ with @replacement@. If the @needle@ is empty, no
+-- replacement will be performed. Equivalent to @'intercalate' replacement '.'
+-- 'splitOn' needle '$' haystack@.
+--
+-- >>> replace empty [ascii| "NYAN~" |] [ascii| "catboy goes nyan nyan" |]
+-- "catboy goes nyan nyan"
+-- >>> replace [ascii| "nyan" |] [ascii| "NYAN~" |] empty
+-- ""
+-- >>> replace [ascii| "nyan" |] [ascii| "NYAN~" |] [ascii| "catboy goes nyan nyan" |]
+-- "catboy goes NYAN~ NYAN~"
+-- >>> replace [ascii| "nyan" |] [ascii| "NYAN~" |] [ascii| "nyanyan" |]
+-- "NYAN~yan"
+--
+-- = On complexity
+--
+-- This function is based on a variant of the
+-- [NSN](https://www-igm.univ-mlv.fr/~lecroq/string/node13.html) algorithm,
+-- except it does not detect overlapping needles. Its average-case analysis is
+-- based on the assumption that:
+--
+-- * All ASCII symbols are equally likely to occur in both the needle and the
+-- haystack; and
+-- * The needle has length at least two; and
+-- * Both the needle and the haystack contain at least four unique symbols.
+--
+-- We fall back to 'split' for singleton needles, and there is no work to be
+-- done on empty needles, which means the second assumption always holds.
+--
+-- Worst-case behaviour becomes more likely the more your input satisfies the
+-- following conditions:
+--
+-- * The needle and/or haystack use few unique symbols (less than four is the
+-- worst); or
+-- * The haystack contains many instances of the second symbol of the needle
+-- which don't lead to full matches.
+--
+-- The analysis below also doesn't factor in the cost of performing the
+-- replacement, as this is (among other things) proportional to the number of
+-- matches of the needle (and thus is hard to quantify).
+--
+-- /Complexity:/ \(\Theta(h)\) average case, \(\Theta(h \cdot n\)\) worst-case.
+--
+-- /See also:/ Note that all the below are references for the original
+-- algorithm, which includes searching for overlapping needles. Thus, our
+-- implementation will perform better than the analysis suggests.
+--
+-- * [Description and pseudocode](https://www-igm.univ-mlv.fr/~lecroq/string/node13.html)
+-- * ["Algorithms on Strings"](https://www.cambridge.org/core/books/algorithms-on-strings/19049704C876795D95D8882C73257C70) by Crochemore, Hancart and Lecroq. PDF available [here](https://www.researchgate.net/publication/220693689_Algorithms_on_Strings).
+--
+-- @since 1.0.1
+replace ::
+  -- | @needle@ to search for
+  AsciiText ->
+  -- | @replacement@ to replace @needle@ with
+  AsciiText ->
+  -- | @haystack@ in which to search
+  AsciiText ->
+  AsciiText
+replace needle replacement haystack
+  | length needle == 0 || length haystack == 0 = haystack
+  | length needle > length haystack = haystack
+  | otherwise = intercalate replacement . splitOn needle $ haystack
 
 -- | @justifyLeft n c t@ produces a result of length \(\max \{ {\tt n }, {\tt length} \; {\tt t} \}\),
 -- consisting of a copy of @t@ followed by (zero or more) copies
@@ -997,7 +1067,70 @@ tails = coerce BS.tails
 
 -- Breaking into many substrings
 
--- TODO: splitOn
+-- | @splitOn needle haystack@, given a @needle@ of length \(n\) and a haystack
+-- of length \(h\), breaks @haystack@ into pieces, separated by @needle@. Any
+-- occurrences of @needle@ in @haystack@ are consumed.
+--
+-- >>> splitOn empty [ascii| "catboy goes nyan and goes nyan" |]
+-- ["catboy goes nyan and goes nyan"]
+-- >>> splitOn [ascii| "nyan" |] empty
+-- [""]
+-- >>> splitOn [ascii| "nyan" |] [ascii| "catboy goes nyan and goes nyan" |]
+-- ["catboy goes "," and goes ",""]
+-- >>> splitOn [ascii| "nyan" |] [ascii| "nyan" |]
+-- ["",""]
+-- >>> splitOn [ascii| "nyan" |] [ascii| "catboy" |]
+-- ["catboy"]
+--
+-- = On complexity
+--
+-- This function is based on a variant of the
+-- [NSN](https://www-igm.univ-mlv.fr/~lecroq/string/node13.html) algorithm,
+-- except it does not detect overlapping needles. Its average-case analysis is
+-- based on the assumption that:
+--
+-- * All ASCII symbols are equally likely to occur in both the needle and the
+-- haystack; and
+-- * The needle has length at least two; and
+-- * Both the needle and the haystack contain at least four unique symbols.
+--
+-- We fall back to 'split' for singleton needles, and there is no work to be
+-- done on empty needles, which means the second assumption always holds.
+--
+-- Worst-case behaviour becomes more likely the more your input satisfies the
+-- following conditions:
+--
+-- * The needle and/or haystack use few unique symbols (less than four is the
+-- worst); or
+-- * The haystack contains many instances of the second symbol of the needle
+-- which don't lead to full matches.
+--
+-- /Complexity:/ \(\Theta(h)\) average case, \(\Theta(h \cdot n\)\) worst-case.
+--
+-- /See also:/ Note that all the below are references for the original
+-- algorithm, which includes searching for overlapping needles. Thus, our
+-- implementation will perform better than the analysis suggests.
+--
+-- * [Description and pseudocode](https://www-igm.univ-mlv.fr/~lecroq/string/node13.html)
+-- * ["Algorithms on Strings"](https://www.cambridge.org/core/books/algorithms-on-strings/19049704C876795D95D8882C73257C70) by Crochemore, Hancart and Lecroq. PDF available [here](https://www.researchgate.net/publication/220693689_Algorithms_on_Strings).
+--
+-- @since 1.0.1
+splitOn :: AsciiText -> AsciiText -> [AsciiText]
+splitOn needle@(AsciiText n) haystack@(AsciiText h)
+  | needleLen == 0 = [haystack]
+  | length haystack == 0 = [empty]
+  | needleLen == 1 = split (== (AsciiChar . BS.head $ n)) haystack
+  | otherwise = go 0 (indices n h)
+  where
+    needleLen :: Int
+    needleLen = length needle
+    go :: Int -> [Int] -> [AsciiText]
+    go pos = \case
+      [] -> [drop pos haystack]
+      (ix : ixes) ->
+        let chunkLen = ix - pos
+            segment = take chunkLen . drop pos $ haystack
+         in segment : go (pos + chunkLen + needleLen) ixes
 
 -- | @split p t@ separates @t@ into components delimited by separators, for
 -- which @p@ returns @True@. The results do not contain the separators.
@@ -1632,3 +1765,31 @@ asciify :: Word8 -> Maybe Word8
 asciify w8
   | w8 <= 127 = Just w8
   | otherwise = Nothing
+
+indices :: ByteString -> ByteString -> [Int]
+indices needle haystack
+  | P.min needleLen haystackLen == 0 = []
+  | needleLen == 1 = BS.elemIndices (BS.head needle) haystack
+  | otherwise = L.unfoldr go 0
+  where
+    go :: Int -> Maybe (Int, Int)
+    go j
+      | j > (haystackLen - needleLen) = Nothing
+      | BS.index needle 1 /= BS.index haystack (j + 1) = go (j + kay)
+      | otherwise = do
+        let fragment = BS.take needleLen . BS.drop j $ haystack
+        if fragment == needle
+          then pure (j, j + needleLen)
+          else go (j + ell)
+    kay :: Int
+    kay
+      | BS.head needle == BS.index needle 1 = 2
+      | otherwise = 1
+    ell :: Int
+    ell
+      | BS.head needle == BS.index needle 1 = 1
+      | otherwise = 2
+    needleLen :: Int
+    needleLen = BS.length needle
+    haystackLen :: Int
+    haystackLen = BS.length haystack
