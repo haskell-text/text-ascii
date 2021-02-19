@@ -111,16 +111,19 @@ module Text.Ascii
     -- * View patterns
     stripPrefix,
     stripSuffix,
+    stripInfix,
     commonPrefixes,
 
     -- * Searching
     filter,
+    breakOnAll,
     find,
     partition,
 
     -- * Indexing
     index,
     findIndex,
+    count,
 
     -- * Zipping
     zip,
@@ -1426,7 +1429,70 @@ stripPrefix = coerce BS.stripPrefix
 stripSuffix :: AsciiText -> AsciiText -> Maybe AsciiText
 stripSuffix = coerce BS.stripSuffix
 
--- TODO: stripInfix
+-- | @stripInfix needle haystack@, given a needle of length \(n\) and a haystack
+-- of length \(h\), attempts to find the first instance of @needle@ in
+-- @haystack@. If successful, it returns 'Just' the pair consisting of:
+--
+-- * All the text in @haystack@ before the first instance of @needle@; and
+-- * All the text in @haystack@ after, but not including, the first instance of
+-- @needle@.
+--
+-- If there is no instance of @needle@ in @haystack@, this returns 'Nothing'.
+--
+-- >>> stripInfix [ascii| "catboy" |] empty
+-- Nothing
+-- >>> stripInfix empty [ascii| "nyan catboy nyan nyan" |]
+-- Nothing
+-- >>> stripInfix [ascii| "catboy" |] [ascii| "catboy" |]
+-- Just ("","")
+-- >>> stripInfix [ascii| "catboy" |] [ascii| "nyan catboy" |]
+-- Just ("nyan ","")
+-- >>> stripInfix [ascii| "catboy" |] [ascii| "catboy nyan" |]
+-- Just (""," nyan")
+-- >>> stripInfix [ascii| "catboy" |] [ascii| "nyan catboy nyan nyan" |]
+-- Just ("nyan "," nyan nyan")
+-- >>> stripInfix [ascii| "nyan" |] [ascii| "nyanyanyan" |]
+-- Just ("","yanyan")
+--
+-- = On complexity
+--
+-- This function is based on a variant of the
+-- [NSN](https://www-igm.univ-mlv.fr/~lecroq/string/node13.html) algorithm,
+-- except it does not detect overlapping needles. Its average-case analysis is
+-- based on the assumption that:
+--
+-- * All ASCII symbols are equally likely to occur in both the needle and the
+-- haystack; and
+-- * The needle has length at least two; and
+-- * Both the needle and the haystack contain at least four unique symbols.
+--
+-- We fall back to 'split' for singleton needles, and there is no work to be
+-- done on empty needles, which means the second assumption always holds.
+--
+-- Worst-case behaviour becomes more likely the more your input satisfies the
+-- following conditions:
+--
+-- * The needle and/or haystack use few unique symbols (less than four is the
+-- worst); or
+-- * The haystack contains many instances of the second symbol of the needle
+-- which don't lead to full matches.
+--
+-- /Complexity:/ \(\Theta(h)\) average case, \(\Theta(h \cdot n\)\) worst-case.
+--
+-- /See also:/ Note that all the below are references for the original
+-- algorithm, which includes searching for overlapping needles. Thus, our
+-- implementation will perform better than the analysis suggests.
+--
+-- * [Description and pseudocode](https://www-igm.univ-mlv.fr/~lecroq/string/node13.html)
+-- * ["Algorithms on Strings"](https://www.cambridge.org/core/books/algorithms-on-strings/19049704C876795D95D8882C73257C70) by Crochemore, Hancart and Lecroq. PDF available [here](https://www.researchgate.net/publication/220693689_Algorithms_on_Strings).
+--
+-- @since 1.0.1
+stripInfix :: AsciiText -> AsciiText -> Maybe (AsciiText, AsciiText)
+stripInfix needle@(AsciiText n) haystack@(AsciiText h)
+  | P.min (length needle) (length haystack) == 0 = Nothing
+  | otherwise = case indices n h of
+    [] -> Nothing
+    (ix : _) -> Just (take ix haystack, drop (ix + length needle) haystack)
 
 -- | Find the longest non-empty common prefix of the arguments and return it,
 -- along with the remaining suffixes of both arguments. If the arguments lack a
@@ -1478,7 +1544,66 @@ commonPrefixes (AsciiText t1) (AsciiText t2) =
 filter :: (AsciiChar -> Bool) -> AsciiText -> AsciiText
 filter = coerce BS.filter
 
--- TODO: breakOnAll
+-- | @breakOnAll needle haystack@, given a @needle@ of length \(n\) and a
+-- @haystack@ of length \(h\), finds all non-overlapping instances of @needle@
+-- in @haystack@. Each result consists of the following elements:
+--
+-- * The prefix prior to the match; and
+-- * The match, followed by the rest of the string.
+--
+-- If given an empty needle, the result is a singleton list containing a pair of
+-- the entire haystack and the empty text. If given an empty haystack, the
+-- result is an empty list.
+--
+-- >>> breakOnAll empty [ascii| "nyan nyan nyan" |]
+-- [("nyan nyan nyan","")]
+-- >>> breakOnAll [ascii| "nyan" |] empty
+-- []
+-- >>> breakOnAll [ascii| "nyan" |] [ascii| "nyan" |]
+-- [("","nyan")]
+-- >>> breakOnAll [ascii| "nyan" |] [ascii| "nyan nyan nyan" |]
+-- [("","nyan nyan nyan"),("nyan ","nyan nyan"),("nyan nyan ","nyan")]
+-- >>> breakOnAll [ascii| "nyan" |] [ascii| "nyanyanyan" |]
+-- [("","nyanyanyan"),("nyanya","nyan")]
+--
+-- = On complexity
+--
+-- This function is based on a variant of the
+-- [NSN](https://www-igm.univ-mlv.fr/~lecroq/string/node13.html) algorithm,
+-- except it does not detect overlapping needles. Its average-case analysis is
+-- based on the assumption that:
+--
+-- * All ASCII symbols are equally likely to occur in both the needle and the
+-- haystack; and
+-- * The needle has length at least two; and
+-- * Both the needle and the haystack contain at least four unique symbols.
+--
+-- We fall back to 'split' for singleton needles, and there is no work to be
+-- done on empty needles, which means the second assumption always holds.
+--
+-- Worst-case behaviour becomes more likely the more your input satisfies the
+-- following conditions:
+--
+-- * The needle and/or haystack use few unique symbols (less than four is the
+-- worst); or
+-- * The haystack contains many instances of the second symbol of the needle
+-- which don't lead to full matches.
+--
+-- /Complexity:/ \(\Theta(h)\) average case, \(\Theta(h \cdot n\)\) worst-case.
+--
+-- /See also:/ Note that all the below are references for the original
+-- algorithm, which includes searching for overlapping needles. Thus, our
+-- implementation will perform better than the analysis suggests.
+--
+-- * [Description and pseudocode](https://www-igm.univ-mlv.fr/~lecroq/string/node13.html)
+-- * ["Algorithms on Strings"](https://www.cambridge.org/core/books/algorithms-on-strings/19049704C876795D95D8882C73257C70) by Crochemore, Hancart and Lecroq. PDF available [here](https://www.researchgate.net/publication/220693689_Algorithms_on_Strings).
+--
+-- @since 1.0.1
+breakOnAll :: AsciiText -> AsciiText -> [(AsciiText, AsciiText)]
+breakOnAll needle@(AsciiText n) haystack@(AsciiText h)
+  | length needle == 0 = [(haystack, empty)]
+  | length haystack == 0 = []
+  | otherwise = (`splitAt` haystack) <$> indices n h
 
 -- | Returns 'Just' the first character in the text satisfying the predicate,
 -- 'Nothing' otherwise.
@@ -1559,7 +1684,59 @@ index at i
 findIndex :: (AsciiChar -> Bool) -> AsciiText -> Maybe Int
 findIndex = coerce BS.findIndex
 
--- TODO: count
+-- | @count needle haystack@, given a @needle@ of length \(n\) and a haystack of
+-- length \(h\), counts the number of non-overlapping occurrences of @needle@ in
+-- @haystack@. If @needle@ is empty, the count will be 0.
+--
+-- >>> count empty [ascii| "nyan nyan nyan" |]
+-- 0
+-- >>> count [ascii| "nyan" |] empty
+-- 0
+-- >>> count [ascii| "nyan" |] [ascii| "nyan" |]
+-- 1
+-- >>> count [ascii| "nyan" |] [ascii| "nyan nyan nyan" |]
+-- 3
+-- >>> count [ascii| "nyan" |] [ascii| "nyanyanyan" |]
+-- 2
+--
+-- = On complexity
+--
+-- This function is based on a variant of the
+-- [NSN](https://www-igm.univ-mlv.fr/~lecroq/string/node13.html) algorithm,
+-- except it does not detect overlapping needles. Its average-case analysis is
+-- based on the assumption that:
+--
+-- * All ASCII symbols are equally likely to occur in both the needle and the
+-- haystack; and
+-- * The needle has length at least two; and
+-- * Both the needle and the haystack contain at least four unique symbols.
+--
+-- We fall back to 'split' for singleton needles, and there is no work to be
+-- done on empty needles, which means the second assumption always holds.
+--
+-- Worst-case behaviour becomes more likely the more your input satisfies the
+-- following conditions:
+--
+-- * The needle and/or haystack use few unique symbols (less than four is the
+-- worst); or
+-- * The haystack contains many instances of the second symbol of the needle
+-- which don't lead to full matches.
+--
+-- /Complexity:/ \(\Theta(h)\) average case, \(\Theta(h \cdot n\)\) worst-case.
+--
+-- /See also:/ Note that all the below are references for the original
+-- algorithm, which includes searching for overlapping needles. Thus, our
+-- implementation will perform better than the analysis suggests.
+--
+-- * [Description and pseudocode](https://www-igm.univ-mlv.fr/~lecroq/string/node13.html)
+-- * ["Algorithms on Strings"](https://www.cambridge.org/core/books/algorithms-on-strings/19049704C876795D95D8882C73257C70) by Crochemore, Hancart and Lecroq. PDF available [here](https://www.researchgate.net/publication/220693689_Algorithms_on_Strings).
+--
+-- @since 1.0.1
+count :: AsciiText -> AsciiText -> Int
+count needle@(AsciiText n) haystack@(AsciiText h)
+  | P.min (length needle) (length haystack) == 0 = 0
+  | length needle == 1 = BS.count (BS.head n) h
+  | otherwise = P.length . indices n $ h
 
 -- Zipping
 
