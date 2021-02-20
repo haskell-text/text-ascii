@@ -12,6 +12,15 @@
   `index`, `zipWith`, `justifyLeft`, `justifyRight`, `center`, `takeEnd`, 
   `dropEnd`, `dropAround`, `strip`, `stripStart`, `stripEnd`, `commonPrefixes` 
   for `AsciiText`.
+* Implement [NSN](https://www-igm.univ-mlv.fr/~lecroq/string/node13.html), as 
+  well as the following functions that use it:
+  * `count`
+  * `replace`
+  * `splitOn`
+  * `stripInfix`
+  * `breakOnAll`
+  * `breakOn`
+  * `breakOnEnd`
 * Add `Unsafe` module containing an `Unsafe` wrapper, plus instances and
   functions.
 * Add a range of optics for `AsciiText`.

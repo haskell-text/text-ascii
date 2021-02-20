@@ -90,6 +90,8 @@ module Text.Ascii
     stripStart,
     stripEnd,
     splitAt,
+    breakOn,
+    breakOnEnd,
     break,
     span,
     group,
@@ -966,7 +968,137 @@ stripEnd = dropWhileEnd isSpace
 splitAt :: Int -> AsciiText -> (AsciiText, AsciiText)
 splitAt = coerce BS.splitAt
 
--- TODO: breakOn, breakOnEnd
+-- | @breakOn needle haystack@, given a @needle@ of length \(n\) and a
+-- @haystack@ of length \(h\), attempts to find the first instance of @needle@
+-- in @haystack@. If successful, return a tuple consisting of:
+--
+-- * The prefix of @haystack@ before the match; and
+-- * The rest of @haystack@, starting with the match.
+--
+-- If the needle is empty, this returns @('empty', haystack)@. If no match can
+-- be found, this instead returns @(haystack, 'empty')@.
+--
+-- If you need to repeatedly split on the same needle, consider 'breakOnAll', as
+-- this will be more efficient due to only having to run the matching algorithm
+-- once.
+--
+-- >>> breakOn empty [ascii| "catboy goes nyan" |]
+-- ("","catboy goes nyan")
+-- >>> breakOn [ascii| "nyan" |] empty
+-- ("","")
+-- >>> breakOn [ascii| "goes" |] [ascii| "catboy goes nyan" |]
+-- ("catboy ","goes nyan")
+-- >>> breakOn [ascii| "catboy" |] [ascii| "nyan nyan nyan" |]
+-- ("nyan nyan nyan","")
+--
+-- = On complexity
+--
+-- This function is based on a variant of the
+-- [NSN](https://www-igm.univ-mlv.fr/~lecroq/string/node13.html) algorithm,
+-- except it does not detect overlapping needles. Its average-case analysis is
+-- based on the assumption that:
+--
+-- * All ASCII symbols are equally likely to occur in both the needle and the
+-- haystack; and
+-- * The needle has length at least two; and
+-- * Both the needle and the haystack contain at least four unique symbols.
+--
+-- We fall back to 'split' for singleton needles, and there is no work to be
+-- done on empty needles, which means the second assumption always holds.
+--
+-- Worst-case behaviour becomes more likely the more your input satisfies the
+-- following conditions:
+--
+-- * The needle and/or haystack use few unique symbols (less than four is the
+-- worst); or
+-- * The haystack contains many instances of the second symbol of the needle
+-- which don't lead to full matches.
+--
+-- /Complexity:/ \(\Theta(h)\) average case, \(\Theta(h \cdot n\)\) worst-case.
+--
+-- /See also:/ Note that all the below are references for the original
+-- algorithm, which includes searching for overlapping needles. Thus, our
+-- implementation will perform better than the analysis suggests.
+--
+-- * [Description and pseudocode](https://www-igm.univ-mlv.fr/~lecroq/string/node13.html)
+-- * ["Algorithms on Strings"](https://www.cambridge.org/core/books/algorithms-on-strings/19049704C876795D95D8882C73257C70) by Crochemore, Hancart and Lecroq. PDF available [here](https://www.researchgate.net/publication/220693689_Algorithms_on_Strings).
+--
+-- @since 1.0.1
+breakOn :: AsciiText -> AsciiText -> (AsciiText, AsciiText)
+breakOn needle@(AsciiText n) haystack@(AsciiText h)
+  | length needle == 0 = (empty, haystack)
+  | otherwise = case indices n h of
+    [] -> (haystack, empty)
+    ix : _ -> splitAt ix haystack
+
+-- | @breakOnEnd needle haystack@, given a @needle@ of length \(n\) and a
+-- @haystack@ of length \(h\), attempts to find the last instance of @needle@ in
+-- @haystack@. If successful, return a tuple consisting of:
+--
+-- * The prefix of @haystack@ up to, and including, the match; and
+-- * The rest of @haystack@.
+--
+-- If the needle is empty, this returns @(haystack, 'empty')@. If no match can
+-- be found, this instead returns @('empty', haystack)@.
+--
+-- This function is similar to 'breakOn'. If you need to repeatedly split on the
+-- same needle, consider 'breakOnAll', as this will be more efficient due to
+-- only having to run the matching algorithm once.
+--
+-- >>> breakOnEnd empty [ascii| "catboy goes nyan" |]
+-- ("catboy goes nyan","")
+-- >>> breakOnEnd [ascii| "nyan" |] empty
+-- ("","")
+-- >>> breakOnEnd [ascii| "goes" |] [ascii| "catboy goes nyan" |]
+-- ("catboy goes"," nyan")
+-- >>> breakOnEnd [ascii| "catboy" |] [ascii| "nyan nyan nyan" |]
+-- ("","nyan nyan nyan")
+--
+-- = On complexity
+--
+-- This function is based on a variant of the
+-- [NSN](https://www-igm.univ-mlv.fr/~lecroq/string/node13.html) algorithm,
+-- except it does not detect overlapping needles. Its average-case analysis is
+-- based on the assumption that:
+--
+-- * All ASCII symbols are equally likely to occur in both the needle and the
+-- haystack; and
+-- * The needle has length at least two; and
+-- * Both the needle and the haystack contain at least four unique symbols.
+--
+-- We fall back to 'split' for singleton needles, and there is no work to be
+-- done on empty needles, which means the second assumption always holds.
+--
+-- Worst-case behaviour becomes more likely the more your input satisfies the
+-- following conditions:
+--
+-- * The needle and/or haystack use few unique symbols (less than four is the
+-- worst); or
+-- * The haystack contains many instances of the second symbol of the needle
+-- which don't lead to full matches.
+--
+-- /Complexity:/ \(\Theta(h)\) average case, \(\Theta(h \cdot n\)\) worst-case.
+--
+-- /See also:/ Note that all the below are references for the original
+-- algorithm, which includes searching for overlapping needles. Thus, our
+-- implementation will perform better than the analysis suggests.
+--
+-- * [Description and pseudocode](https://www-igm.univ-mlv.fr/~lecroq/string/node13.html)
+-- * ["Algorithms on Strings"](https://www.cambridge.org/core/books/algorithms-on-strings/19049704C876795D95D8882C73257C70) by Crochemore, Hancart and Lecroq. PDF available [here](https://www.researchgate.net/publication/220693689_Algorithms_on_Strings).
+--
+-- @since 1.0.1
+breakOnEnd :: AsciiText -> AsciiText -> (AsciiText, AsciiText)
+breakOnEnd needle@(AsciiText n) haystack@(AsciiText h)
+  | length needle == 0 = (haystack, empty)
+  | otherwise = case go . indices n $ h of
+    Nothing -> (empty, haystack)
+    Just ix -> splitAt (ix + length needle) haystack
+  where
+    go :: [Int] -> Maybe Int
+    go = \case
+      [] -> Nothing
+      [i] -> Just i
+      (_ : is) -> go is
 
 -- | @break p t@ is equivalent to @('takeWhile' ('not' p) t, 'dropWhile' ('not'
 -- p) t)@.
