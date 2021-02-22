@@ -1,0 +1,4 @@
+packages: ./text-ascii.cabal
+
+package text-ascii
+  ghc-options: -Werror

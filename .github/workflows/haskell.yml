@@ -17,6 +17,7 @@ jobs:
           - "8.6.5"
           - "8.8.4"
           - "8.10.3"
+          - "9.0.1"
 
     steps:
     - uses: actions/checkout@v2
@@ -33,7 +34,7 @@ jobs:
         repository: phadej/cabal-extras
         path: ./cabal-extras
     - name: Configure main repo
-      run: cabal new-configure --flags="dev"
+      run: cabal new-configure
     - name: Configure cabal-docspec
       working-directory: cabal-extras/cabal-docspec
       run: cabal new-configure -w ghc
@@ -55,14 +56,14 @@ jobs:
           ${{ env.V }}-${{ runner.os }}-${{ matrix.ghc }}-
           ${{ env.V }}-${{ runner.os }}-
     - name: Install base dependencies
-      run: cabal new-build --only-dependencies --flags="dev"
+      run: cabal new-build --only-dependencies
     - name: Install cabal-docspec
       working-directory: cabal-extras/cabal-docspec
       run: cabal new-install --install-method=copy --installdir=${{ runner.temp }} --overwrite-policy=always
     - name: Build base repo
       run: |
-        cabal new-build --flags="dev" || { # macOS + TH = QQ
-          cabal clean && cabal new-build --flags="dev"
+        cabal new-build || { # macOS + TH = QQ
+          cabal clean && cabal new-build
         }
     - name: Run doctests
       run: ${{ runner.temp }}/cabal-docspec -v --trace-process --timeout 30 --strip-comments --builddir "${{ github.workspace }}/dist-newstyle"

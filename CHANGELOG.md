@@ -1,7 +1,8 @@
 # Revision history for text-ascii
 
-## Unreleased
+## 1.0.1 -- 2021-02-23
 
+* Support GHC 9
 * Expose `Text.Ascii.Internal` and `Text.Ascii.QQ`.
 * Add `Ixed` instance (and supporting type instances) for `AsciiText`.
 * Add `Stream`, `VisualStream` and `TraversableStream` instances (and supporting
