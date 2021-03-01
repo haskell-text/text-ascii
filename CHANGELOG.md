@@ -2,7 +2,8 @@
 
 ## 1.0.1 -- 2021-02-23
 
-* Support GHC 9
+* Support GHC 9.
+* Replace 8.10.3 with 8.10.4 in CI.
 * Expose `Text.Ascii.Internal` and `Text.Ascii.QQ`.
 * Add `Ixed` instance (and supporting type instances) for `AsciiText`.
 * Add `Stream`, `VisualStream` and `TraversableStream` instances (and supporting

@@ -16,7 +16,7 @@ jobs:
         ghc:
           - "8.6.5"
           - "8.8.4"
-          - "8.10.3"
+          - "8.10.4"
           - "9.0.1"
 
     steps:
@@ -34,10 +34,10 @@ jobs:
         repository: kozross/cabal-extras
         path: ./cabal-extras
     - name: Configure main repo
-      run: cabal new-configure
+      run: cabal new-configure --disable-optimization
     - name: Configure cabal-docspec
       working-directory: cabal-extras/cabal-docspec
-      run: cabal new-configure -w ghc
+      run: cabal new-configure -w ghc --disable-optimization
     - name: Freeze
       run: |
         cabal freeze
@@ -66,4 +66,4 @@ jobs:
           cabal clean && cabal new-build
         }
     - name: Run doctests
-      run: ${{ runner.temp }}/cabal-docspec -v --trace-process --timeout 30 --strip-comments --builddir "${{ github.workspace }}/dist-newstyle"
+      run: ${{ runner.temp }}/cabal-docspec --trace-process --timeout 30 --strip-comments --builddir "${{ github.workspace }}/dist-newstyle"

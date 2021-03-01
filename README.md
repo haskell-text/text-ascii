@@ -54,7 +54,8 @@ Currently, our CI checks the following versions of GHC:
 
 * 8.6.5
 * 8.8.4
-* 8.10.3
+* 8.10.4
+* 9.0.1
 
 We check on the following platforms:
 
