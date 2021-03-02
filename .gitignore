@@ -3,7 +3,7 @@
 dist
 dist-newstyle
 .ghc.environment.*
-cabal.project.local
+cabal.project.local*
 .stack-work
 stack.yaml.lock
 cabal.project.local~

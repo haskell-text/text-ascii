@@ -58,6 +58,8 @@ import Text.Ascii.QQ (char)
 -- $setup
 -- >>> :set -XQuasiQuotes
 -- >>> import Text.Ascii.Char
+-- >>> import Optics.AffineFold (preview)
+-- >>> import Optics.Review (review)
 
 -- | Try and turn a 'Char' into the equivalent 'AsciiChar'. Will return
 -- 'Nothing' if given a 'Char' that has no ASCII equivalent.
@@ -357,11 +359,25 @@ caseOf c@(AsciiChar w8)
 
 -- | A representation of the relationship between 'Char' and 'AsciiChar'.
 --
+-- >>> preview charWise 'w'
+-- Just '0x77'
+-- >>> preview charWise '😺'
+-- Nothing
+-- >>> review charWise [char| 'w' |]
+-- 'w'
+--
 -- @since 1.0.0
 charWise :: Prism' Char AsciiChar
 charWise = prism' (chr . fromIntegral . toByte) fromChar
 
 -- | A representation of the relationship between ASCII characters and bytes.
+--
+-- >>> preview byteWise 0x20
+-- Just '0x20'
+-- >>> preview byteWise 0x81
+-- Nothing
+-- >>> review byteWise [char| 'w' |]
+-- 119
 --
 -- @since 1.0.0
 byteWise :: Prism' Word8 AsciiChar

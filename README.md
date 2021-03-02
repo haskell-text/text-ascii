@@ -12,15 +12,21 @@ Partial functions (and type classes which provide them) will not be included:
 everything is total. When we include anything unsafe, it will be explicitly
 firewalled into its own module, behind a newtype.
 
+### No boolean blindness
+
+[Boolean blindness](http://dev.stephendiehl.com/hask/#boolean-blindness) is not
+a good thing, for all the reasons listed in the link. Whenever possible, we'll
+try and give more useful information than a `Bool`.
+
 ### Compatibility with the [`text`](http://hackage.haskell.org/package/text) API
 
-We have (without conflicting with totality) a goal to match the API of the
-`text` package exactly. If you know how to use `text`, you know how to use this
-package too.
+We want match the API of the `text` package exactly. If you know how to use `text`, 
+you'll know how to use this package too. Exceptions are made for places where
+`text` is either partial or boolean-blind.
 
 ### Discoverability, documentation and user-friendliness
 
-In addition to documenting everything with Haddocks, we have over 100 doctests,
+In addition to documenting everything with Haddocks, we have over 250 doctests,
 which provide _executable_ examples of how the API can be used, and how it will
 behave. We aim to clarify _every_ corner case left by the documentation of
 `text`, and care strongly about making the API easy to follow, learn and
@@ -48,7 +54,8 @@ Currently, our CI checks the following versions of GHC:
 
 * 8.6.5
 * 8.8.4
-* 8.10.3
+* 8.10.4
+* 9.0.1
 
 We check on the following platforms:
 
