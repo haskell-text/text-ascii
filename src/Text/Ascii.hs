@@ -753,7 +753,7 @@ take = coerce BS.take
 -- >>> takeEnd 1000 [ascii| "catboy" |]
 -- "catboy"
 --
--- /Complexity:] \(\Theta(1)\)
+-- /Complexity:/ \(\Theta(1)\)
 --
 -- @since 1.0.1
 takeEnd :: Int -> AsciiText -> AsciiText

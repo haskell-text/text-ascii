@@ -1,6 +1,6 @@
 # Revision history for text-ascii
 
-## 1.0.1 -- 2021-02-23
+## 1.0.1 -- 2021-03-02
 
 * Support GHC 9.
 * Replace 8.10.3 with 8.10.4 in CI.
