@@ -1,4 +1,4 @@
-# `text-ascii`
+# `text-ascii` [![Hackage](https://img.shields.io/hackage/v/text-ascii?style=flat-square)][hackage]
 
 ## What is this thing?
 
@@ -68,3 +68,5 @@ We check on the following platforms:
 The project is licensed Apache 2.0 (SPDX code
 [`Apache-2.0`](https://spdx.org/licenses/Apache-2.0.html)). For more details,
 please see the `LICENSE.md` file.
+
+[hackage]: https://hackage.haskell.org/package/text-ascii
