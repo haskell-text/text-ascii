@@ -1,5 +1,10 @@
 # Revision history for text-ascii
 
+## 1.0.2 -- 
+
+* Add `eitherFromText` and `eitherFromByteString` for clearer indicators of
+  conversion failure.
+
 ## 1.0.1 -- 2021-03-02
 
 * Support GHC 9.

@@ -133,7 +133,9 @@ module Text.Ascii
 
     -- * Conversions
     fromText,
+    eitherFromText,
     fromByteString,
+    eitherFromByteString,
     toText,
     toByteString,
 
@@ -1930,6 +1932,22 @@ fromText t = case T.find (not . isAscii) t of
   Nothing -> pure . AsciiText . encodeUtf8 $ t
   Just _ -> Nothing
 
+-- | Try and convert a 'Text' into an 'AsciiText'. Gives @'Left' c@ if the 'Text'
+-- contains a 'Char' @c@ that lacks an ASCII representation.
+--
+-- >>> eitherFromText "catboy"
+-- Right "catboy"
+-- >>> eitherFromText "😺😺😺😺😺"
+-- Left '\128570'
+--
+-- /Complexity:/ \(\Theta(n)\)
+--
+-- @since 1.0.2
+eitherFromText :: Text -> P.Either P.Char AsciiText
+eitherFromText t = case T.find (not . isAscii) t of
+  Nothing -> pure . AsciiText . encodeUtf8 $ t
+  Just c -> P.Left c
+
 -- | Try and convert a 'ByteString' into an 'AsciiText'. Gives 'Nothing' if the
 -- 'ByteString' contains any bytes outside the ASCII range (that is, from 0 to
 -- 127 inclusive).
@@ -1946,6 +1964,23 @@ fromByteString :: ByteString -> Maybe AsciiText
 fromByteString bs = case BS.find (> 127) bs of
   Nothing -> pure . AsciiText $ bs
   Just _ -> Nothing
+
+-- | Try and convert a 'ByteString' into an 'AsciiText'. Gives @'Left' w8@ if
+-- the 'ByteString' contains a byte @w8@ that is outside the ASCII range (that
+-- is, from 0 to 127 inclusive).
+--
+-- >>> eitherFromByteString "catboy"
+-- Right "catboy"
+-- >>> eitherFromByteString . BS.pack $ [128]
+-- Left 128
+--
+-- /Complexity:/ \(\Theta(n)\)
+--
+-- @since 1.0.2
+eitherFromByteString :: ByteString -> P.Either Word8 AsciiText
+eitherFromByteString bs = case BS.find (> 127) bs of
+  Nothing -> pure . AsciiText $ bs
+  Just w8 -> P.Left w8
 
 -- | Convert an 'AsciiText' into a 'Text' (by copying).
 --
