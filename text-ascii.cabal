@@ -17,6 +17,7 @@ category:           Text
 tested-with:        GHC ==8.6.5 || ==8.8.4 || ==8.10.3 || ==9.0.1
 build-type:         Simple
 extra-source-files:
+  bench-data/big.txt
   CHANGELOG.md
   README.md
 
@@ -45,4 +46,21 @@ library
     -Wincomplete-uni-patterns -Wredundant-constraints
 
   hs-source-dirs:   src
+  default-language: Haskell2010
+
+benchmark string-search
+  type:             exitcode-stdio-1.0
+  main-is:          Main.hs
+  build-depends:
+    , base
+    , bytestring
+    , tasty-bench  ^>=0.2.2
+    , text
+    , text-ascii
+
+  ghc-options:
+    -Wall -Wcompat -Wincomplete-record-updates
+    -Wincomplete-uni-patterns -Wredundant-constraints -O2
+
+  hs-source-dirs:   bench
   default-language: Haskell2010

@@ -160,7 +160,6 @@ import Data.Coerce (coerce)
 import Data.Foldable (Foldable (foldMap))
 import qualified Data.Foldable as F
 import Data.Int (Int64)
-import qualified Data.List as L
 import Data.Maybe (Maybe (Just, Nothing))
 import Data.Text (Text)
 import qualified Data.Text as T
@@ -2114,16 +2113,16 @@ indices :: ByteString -> ByteString -> [Int]
 indices needle haystack
   | P.min needleLen haystackLen == 0 = []
   | needleLen == 1 = BS.elemIndices (BS.head needle) haystack
-  | otherwise = L.unfoldr go 0
+  | otherwise = go 0
   where
-    go :: Int -> Maybe (Int, Int)
+    go :: Int -> [Int]
     go j
-      | j > (haystackLen - needleLen) = Nothing
+      | j > (haystackLen - needleLen) = []
       | BS.index needle 1 /= BS.index haystack (j + 1) = go (j + kay)
       | otherwise = do
         let fragment = BS.take needleLen . BS.drop j $ haystack
         if fragment == needle
-          then pure (j, j + needleLen)
+          then j : go (j + needleLen)
           else go (j + ell)
     kay :: Int
     kay

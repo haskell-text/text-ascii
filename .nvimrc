@@ -7,7 +7,7 @@ let g:ale_lint_on_text_changed = 'never'
 let g:ale_lint_on_insert_leave = 0
 let g:ale_lint_on_enter = 0
 
-call ale#Set('haskell_cabal_build_options', '--enable-tests --disable-optimization')
+call ale#Set('haskell_cabal_build_options', '--enable-tests --disable-optimization --enable-benchmarks')
 
 function! GetCabalCommand(buffer) abort
   let l:flags = ale#Var(a:buffer, 'haskell_cabal_build_options')
