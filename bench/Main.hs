@@ -30,9 +30,11 @@ runSherlockTests asText asAsciiText =
         "Matching"
         [ bench "Match, Text" . nf (T.count "Sherlock") $ asText,
           bench "Match, AsciiText" . nf (TA.count [TA.ascii| "Sherlock" |]) $ asAsciiText,
-          bench "Match 1, Text" . nf (T.count "a") $ asText,
-          bench "Match 1, AsciiText" . nf (TA.count [TA.ascii| "a" |]) $ asAsciiText,
-          bench "No match, Text" . nf (T.count "catboy") $ asText,
-          bench "No match, AsciiText" . nf (TA.count [TA.ascii| "catboy" |]) $ asAsciiText
+          bench "Near-miss, Text" . nf (T.count "Sebastian") $ asText,
+          bench "Near-miss, AsciiText" . nf (TA.count [TA.ascii| "Sebastian" |]) $ asAsciiText,
+          bench "Match 1, Text" . nf (T.count "S") $ asText,
+          bench "Match 1, AsciiText" . nf (TA.count [TA.ascii| "S" |]) $ asAsciiText,
+          bench "No match, Text" . nf (T.count "Simping") $ asText,
+          bench "No match, AsciiText" . nf (TA.count [TA.ascii| "Simping" |]) $ asAsciiText
         ]
     ]

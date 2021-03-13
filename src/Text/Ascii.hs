@@ -2141,11 +2141,10 @@ indices needle haystack = case BS.uncons needle of
   Nothing -> []
   Just (h, t) -> case BS.elemIndices h haystack of
     [] -> []
-    whole@(i : is) -> if BS.null t 
-                then whole
-                else go i is
+    whole@(i : is) -> case BS.uncons t of 
+      Nothing -> whole
+      Just _ -> go i is 
   where
-    go :: Int -> [Int] -> [Int]
     go i is = let fragment = BS.take needleLen . BS.drop i $ haystack in
       if fragment == needle
       then i : case P.dropWhile (\j -> j - i < needleLen) is of 
