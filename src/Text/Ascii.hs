@@ -182,7 +182,6 @@ import Prelude
     ($),
     (+),
     (-),
-    (/=),
     (<),
     (<$>),
     (<=),
@@ -418,39 +417,43 @@ reverse = coerce BS.reverse
 -- "NYAN~yan"
 --
 -- = On complexity
+-- 
+-- This function is based on a [naive string
+-- search](https://www-igm.univ-mlv.fr/~lecroq/string/node3.html),
+-- with two added optimizations:
 --
--- This function is based on a variant of the
--- [NSN](https://www-igm.univ-mlv.fr/~lecroq/string/node13.html) algorithm,
--- except it does not detect overlapping needles. Its average-case analysis is
--- based on the assumption that:
+-- * We first detect all locations of the first character of the needle; and
+-- * Once we find a match, we can skip forward by its length (or more, if the
+--   next location is further away).
+--
+-- The average-case analysis is based on the assumptions that:
 --
 -- * All ASCII symbols are equally likely to occur in both the needle and the
--- haystack; and
--- * The needle has length at least two; and
--- * Both the needle and the haystack contain at least four unique symbols.
---
--- We fall back to 'split' for singleton needles, and there is no work to be
--- done on empty needles, which means the second assumption always holds.
+--   haystack; and
+-- * The needle and haystack together contain at least two unique symbols.
 --
 -- Worst-case behaviour becomes more likely the more your input satisfies the
 -- following conditions:
 --
--- * The needle and/or haystack use few unique symbols (less than four is the
--- worst); or
--- * The haystack contains many instances of the second symbol of the needle
--- which don't lead to full matches.
+-- * The first symbol of the needle is frequent, but doesn't lead to many
+--   matches; or
+-- * The needle and/or haystack use few unique symbols.
+--
+-- Also check the [description of the
+-- algorithm](https://www-igm.univ-mlv.fr/~lecroq/string/node3.html)
+-- for additional pathological case examples.
 --
 -- The analysis below also doesn't factor in the cost of performing the
 -- replacement, as this is (among other things) proportional to the number of
 -- matches of the needle (and thus is hard to quantify).
 --
--- /Complexity:/ \(\Theta(h)\) average case, \(\Theta(h \cdot n\)\) worst-case.
+-- /Complexity:/ \(\Theta(h - n)\) average case, \(\Theta(h \cdot n\)\) worst-case.
 --
 -- /See also:/ Note that all the below are references for the original
 -- algorithm, which includes searching for overlapping needles. Thus, our
 -- implementation will perform better than the analysis suggests.
 --
--- * [Description and pseudocode](https://www-igm.univ-mlv.fr/~lecroq/string/node13.html)
+-- * [Description and pseudocode](https://www-igm.univ-mlv.fr/~lecroq/string/node3.html)
 -- * ["Algorithms on Strings"](https://www.cambridge.org/core/books/algorithms-on-strings/19049704C876795D95D8882C73257C70) by Crochemore, Hancart and Lecroq. PDF available [here](https://www.researchgate.net/publication/220693689_Algorithms_on_Strings).
 --
 -- @since 1.0.1
@@ -993,35 +996,39 @@ splitAt = coerce BS.splitAt
 -- ("nyan nyan nyan","")
 --
 -- = On complexity
+-- 
+-- This function is based on a [naive string
+-- search](https://www-igm.univ-mlv.fr/~lecroq/string/node3.html),
+-- with two added optimizations:
 --
--- This function is based on a variant of the
--- [NSN](https://www-igm.univ-mlv.fr/~lecroq/string/node13.html) algorithm,
--- except it does not detect overlapping needles. Its average-case analysis is
--- based on the assumption that:
+-- * We first detect all locations of the first character of the needle; and
+-- * Once we find a match, we can skip forward by its length (or more, if the
+--   next location is further away).
+--
+-- The average-case analysis is based on the assumptions that:
 --
 -- * All ASCII symbols are equally likely to occur in both the needle and the
--- haystack; and
--- * The needle has length at least two; and
--- * Both the needle and the haystack contain at least four unique symbols.
---
--- We fall back to 'split' for singleton needles, and there is no work to be
--- done on empty needles, which means the second assumption always holds.
+--   haystack; and
+-- * The needle and haystack together contain at least two unique symbols.
 --
 -- Worst-case behaviour becomes more likely the more your input satisfies the
 -- following conditions:
 --
--- * The needle and/or haystack use few unique symbols (less than four is the
--- worst); or
--- * The haystack contains many instances of the second symbol of the needle
--- which don't lead to full matches.
+-- * The first symbol of the needle is frequent, but doesn't lead to many
+--   matches; or
+-- * The needle and/or haystack use few unique symbols.
 --
--- /Complexity:/ \(\Theta(h)\) average case, \(\Theta(h \cdot n\)\) worst-case.
+-- Also check the [description of the
+-- algorithm](https://www-igm.univ-mlv.fr/~lecroq/string/node3.html)
+-- for additional pathological case examples.
+--
+-- /Complexity:/ \(\Theta(h - n)\) average case, \(\Theta(h \cdot n\)\) worst-case.
 --
 -- /See also:/ Note that all the below are references for the original
 -- algorithm, which includes searching for overlapping needles. Thus, our
 -- implementation will perform better than the analysis suggests.
 --
--- * [Description and pseudocode](https://www-igm.univ-mlv.fr/~lecroq/string/node13.html)
+-- * [Description and pseudocode](https://www-igm.univ-mlv.fr/~lecroq/string/node3.html)
 -- * ["Algorithms on Strings"](https://www.cambridge.org/core/books/algorithms-on-strings/19049704C876795D95D8882C73257C70) by Crochemore, Hancart and Lecroq. PDF available [here](https://www.researchgate.net/publication/220693689_Algorithms_on_Strings).
 --
 -- @since 1.0.1
@@ -1056,35 +1063,39 @@ breakOn needle@(AsciiText n) haystack@(AsciiText h)
 -- ("","nyan nyan nyan")
 --
 -- = On complexity
+-- 
+-- This function is based on a [naive string
+-- search](https://www-igm.univ-mlv.fr/~lecroq/string/node3.html),
+-- with two added optimizations:
 --
--- This function is based on a variant of the
--- [NSN](https://www-igm.univ-mlv.fr/~lecroq/string/node13.html) algorithm,
--- except it does not detect overlapping needles. Its average-case analysis is
--- based on the assumption that:
+-- * We first detect all locations of the first character of the needle; and
+-- * Once we find a match, we can skip forward by its length (or more, if the
+--   next location is further away).
+--
+-- The average-case analysis is based on the assumptions that:
 --
 -- * All ASCII symbols are equally likely to occur in both the needle and the
--- haystack; and
--- * The needle has length at least two; and
--- * Both the needle and the haystack contain at least four unique symbols.
---
--- We fall back to 'split' for singleton needles, and there is no work to be
--- done on empty needles, which means the second assumption always holds.
+--   haystack; and
+-- * The needle and haystack together contain at least two unique symbols.
 --
 -- Worst-case behaviour becomes more likely the more your input satisfies the
 -- following conditions:
 --
--- * The needle and/or haystack use few unique symbols (less than four is the
--- worst); or
--- * The haystack contains many instances of the second symbol of the needle
--- which don't lead to full matches.
+-- * The first symbol of the needle is frequent, but doesn't lead to many
+--   matches; or
+-- * The needle and/or haystack use few unique symbols.
 --
--- /Complexity:/ \(\Theta(h)\) average case, \(\Theta(h \cdot n\)\) worst-case.
+-- Also check the [description of the
+-- algorithm](https://www-igm.univ-mlv.fr/~lecroq/string/node3.html)
+-- for additional pathological case examples.
+--
+-- /Complexity:/ \(\Theta(h - n)\) average case, \(\Theta(h \cdot n\)\) worst-case.
 --
 -- /See also:/ Note that all the below are references for the original
 -- algorithm, which includes searching for overlapping needles. Thus, our
 -- implementation will perform better than the analysis suggests.
 --
--- * [Description and pseudocode](https://www-igm.univ-mlv.fr/~lecroq/string/node13.html)
+-- * [Description and pseudocode](https://www-igm.univ-mlv.fr/~lecroq/string/node3.html)
 -- * ["Algorithms on Strings"](https://www.cambridge.org/core/books/algorithms-on-strings/19049704C876795D95D8882C73257C70) by Crochemore, Hancart and Lecroq. PDF available [here](https://www.researchgate.net/publication/220693689_Algorithms_on_Strings).
 --
 -- @since 1.0.1
@@ -1219,35 +1230,39 @@ tails = coerce BS.tails
 -- ["catboy"]
 --
 -- = On complexity
+-- 
+-- This function is based on a [naive string
+-- search](https://www-igm.univ-mlv.fr/~lecroq/string/node3.html),
+-- with two added optimizations:
 --
--- This function is based on a variant of the
--- [NSN](https://www-igm.univ-mlv.fr/~lecroq/string/node13.html) algorithm,
--- except it does not detect overlapping needles. Its average-case analysis is
--- based on the assumption that:
+-- * We first detect all locations of the first character of the needle; and
+-- * Once we find a match, we can skip forward by its length (or more, if the
+--   next location is further away).
+--
+-- The average-case analysis is based on the assumptions that:
 --
 -- * All ASCII symbols are equally likely to occur in both the needle and the
--- haystack; and
--- * The needle has length at least two; and
--- * Both the needle and the haystack contain at least four unique symbols.
---
--- We fall back to 'split' for singleton needles, and there is no work to be
--- done on empty needles, which means the second assumption always holds.
+--   haystack; and
+-- * The needle and haystack together contain at least two unique symbols.
 --
 -- Worst-case behaviour becomes more likely the more your input satisfies the
 -- following conditions:
 --
--- * The needle and/or haystack use few unique symbols (less than four is the
--- worst); or
--- * The haystack contains many instances of the second symbol of the needle
--- which don't lead to full matches.
+-- * The first symbol of the needle is frequent, but doesn't lead to many
+--   matches; or
+-- * The needle and/or haystack use few unique symbols.
 --
--- /Complexity:/ \(\Theta(h)\) average case, \(\Theta(h \cdot n\)\) worst-case.
+-- Also check the [description of the
+-- algorithm](https://www-igm.univ-mlv.fr/~lecroq/string/node3.html)
+-- for additional pathological case examples.
+--
+-- /Complexity:/ \(\Theta(h - n)\) average case, \(\Theta(h \cdot n\)\) worst-case.
 --
 -- /See also:/ Note that all the below are references for the original
 -- algorithm, which includes searching for overlapping needles. Thus, our
 -- implementation will perform better than the analysis suggests.
 --
--- * [Description and pseudocode](https://www-igm.univ-mlv.fr/~lecroq/string/node13.html)
+-- * [Description and pseudocode](https://www-igm.univ-mlv.fr/~lecroq/string/node3.html)
 -- * ["Algorithms on Strings"](https://www.cambridge.org/core/books/algorithms-on-strings/19049704C876795D95D8882C73257C70) by Crochemore, Hancart and Lecroq. PDF available [here](https://www.researchgate.net/publication/220693689_Algorithms_on_Strings).
 --
 -- @since 1.0.1
@@ -1588,35 +1603,39 @@ stripSuffix = coerce BS.stripSuffix
 -- Just ("","yanyan")
 --
 -- = On complexity
+-- 
+-- This function is based on a [naive string
+-- search](https://www-igm.univ-mlv.fr/~lecroq/string/node3.html),
+-- with two added optimizations:
 --
--- This function is based on a variant of the
--- [NSN](https://www-igm.univ-mlv.fr/~lecroq/string/node13.html) algorithm,
--- except it does not detect overlapping needles. Its average-case analysis is
--- based on the assumption that:
+-- * We first detect all locations of the first character of the needle; and
+-- * Once we find a match, we can skip forward by its length (or more, if the
+--   next location is further away).
+--
+-- The average-case analysis is based on the assumptions that:
 --
 -- * All ASCII symbols are equally likely to occur in both the needle and the
--- haystack; and
--- * The needle has length at least two; and
--- * Both the needle and the haystack contain at least four unique symbols.
---
--- We fall back to 'split' for singleton needles, and there is no work to be
--- done on empty needles, which means the second assumption always holds.
+--   haystack; and
+-- * The needle and haystack together contain at least two unique symbols.
 --
 -- Worst-case behaviour becomes more likely the more your input satisfies the
 -- following conditions:
 --
--- * The needle and/or haystack use few unique symbols (less than four is the
--- worst); or
--- * The haystack contains many instances of the second symbol of the needle
--- which don't lead to full matches.
+-- * The first symbol of the needle is frequent, but doesn't lead to many
+--   matches; or
+-- * The needle and/or haystack use few unique symbols.
 --
--- /Complexity:/ \(\Theta(h)\) average case, \(\Theta(h \cdot n\)\) worst-case.
+-- Also check the [description of the
+-- algorithm](https://www-igm.univ-mlv.fr/~lecroq/string/node3.html)
+-- for additional pathological case examples.
+--
+-- /Complexity:/ \(\Theta(h - n)\) average case, \(\Theta(h \cdot n\)\) worst-case.
 --
 -- /See also:/ Note that all the below are references for the original
 -- algorithm, which includes searching for overlapping needles. Thus, our
 -- implementation will perform better than the analysis suggests.
 --
--- * [Description and pseudocode](https://www-igm.univ-mlv.fr/~lecroq/string/node13.html)
+-- * [Description and pseudocode](https://www-igm.univ-mlv.fr/~lecroq/string/node3.html)
 -- * ["Algorithms on Strings"](https://www.cambridge.org/core/books/algorithms-on-strings/19049704C876795D95D8882C73257C70) by Crochemore, Hancart and Lecroq. PDF available [here](https://www.researchgate.net/publication/220693689_Algorithms_on_Strings).
 --
 -- @since 1.0.1
@@ -1700,35 +1719,39 @@ filter = coerce BS.filter
 -- [("","nyanyanyan"),("nyanya","nyan")]
 --
 -- = On complexity
+-- 
+-- This function is based on a [naive string
+-- search](https://www-igm.univ-mlv.fr/~lecroq/string/node3.html),
+-- with two added optimizations:
 --
--- This function is based on a variant of the
--- [NSN](https://www-igm.univ-mlv.fr/~lecroq/string/node13.html) algorithm,
--- except it does not detect overlapping needles. Its average-case analysis is
--- based on the assumption that:
+-- * We first detect all locations of the first character of the needle; and
+-- * Once we find a match, we can skip forward by its length (or more, if the
+--   next location is further away).
+--
+-- The average-case analysis is based on the assumptions that:
 --
 -- * All ASCII symbols are equally likely to occur in both the needle and the
--- haystack; and
--- * The needle has length at least two; and
--- * Both the needle and the haystack contain at least four unique symbols.
---
--- We fall back to 'split' for singleton needles, and there is no work to be
--- done on empty needles, which means the second assumption always holds.
+--   haystack; and
+-- * The needle and haystack together contain at least two unique symbols.
 --
 -- Worst-case behaviour becomes more likely the more your input satisfies the
 -- following conditions:
 --
--- * The needle and/or haystack use few unique symbols (less than four is the
--- worst); or
--- * The haystack contains many instances of the second symbol of the needle
--- which don't lead to full matches.
+-- * The first symbol of the needle is frequent, but doesn't lead to many
+--   matches; or
+-- * The needle and/or haystack use few unique symbols.
 --
--- /Complexity:/ \(\Theta(h)\) average case, \(\Theta(h \cdot n\)\) worst-case.
+-- Also check the [description of the
+-- algorithm](https://www-igm.univ-mlv.fr/~lecroq/string/node3.html)
+-- for additional pathological case examples.
+--
+-- /Complexity:/ \(\Theta(h - n)\) average case, \(\Theta(h \cdot n\)\) worst-case.
 --
 -- /See also:/ Note that all the below are references for the original
 -- algorithm, which includes searching for overlapping needles. Thus, our
 -- implementation will perform better than the analysis suggests.
 --
--- * [Description and pseudocode](https://www-igm.univ-mlv.fr/~lecroq/string/node13.html)
+-- * [Description and pseudocode](https://www-igm.univ-mlv.fr/~lecroq/string/node3.html)
 -- * ["Algorithms on Strings"](https://www.cambridge.org/core/books/algorithms-on-strings/19049704C876795D95D8882C73257C70) by Crochemore, Hancart and Lecroq. PDF available [here](https://www.researchgate.net/publication/220693689_Algorithms_on_Strings).
 --
 -- @since 1.0.1
@@ -1833,35 +1856,39 @@ findIndex = coerce BS.findIndex
 -- 2
 --
 -- = On complexity
+-- 
+-- This function is based on a [naive string
+-- search](https://www-igm.univ-mlv.fr/~lecroq/string/node3.html),
+-- with two added optimizations:
 --
--- This function is based on a variant of the
--- [NSN](https://www-igm.univ-mlv.fr/~lecroq/string/node13.html) algorithm,
--- except it does not detect overlapping needles. Its average-case analysis is
--- based on the assumption that:
+-- * We first detect all locations of the first character of the needle; and
+-- * Once we find a match, we can skip forward by its length (or more, if the
+--   next location is further away).
+--
+-- The average-case analysis is based on the assumptions that:
 --
 -- * All ASCII symbols are equally likely to occur in both the needle and the
--- haystack; and
--- * The needle has length at least two; and
--- * Both the needle and the haystack contain at least four unique symbols.
---
--- We fall back to 'split' for singleton needles, and there is no work to be
--- done on empty needles, which means the second assumption always holds.
+--   haystack; and
+-- * The needle and haystack together contain at least two unique symbols.
 --
 -- Worst-case behaviour becomes more likely the more your input satisfies the
 -- following conditions:
 --
--- * The needle and/or haystack use few unique symbols (less than four is the
--- worst); or
--- * The haystack contains many instances of the second symbol of the needle
--- which don't lead to full matches.
+-- * The first symbol of the needle is frequent, but doesn't lead to many
+--   matches; or
+-- * The needle and/or haystack use few unique symbols.
 --
--- /Complexity:/ \(\Theta(h)\) average case, \(\Theta(h \cdot n\)\) worst-case.
+-- Also check the [description of the
+-- algorithm](https://www-igm.univ-mlv.fr/~lecroq/string/node3.html)
+-- for additional pathological case examples.
+--
+-- /Complexity:/ \(\Theta(h - n)\) average case, \(\Theta(h \cdot n\)\) worst-case.
 --
 -- /See also:/ Note that all the below are references for the original
 -- algorithm, which includes searching for overlapping needles. Thus, our
 -- implementation will perform better than the analysis suggests.
 --
--- * [Description and pseudocode](https://www-igm.univ-mlv.fr/~lecroq/string/node13.html)
+-- * [Description and pseudocode](https://www-igm.univ-mlv.fr/~lecroq/string/node3.html)
 -- * ["Algorithms on Strings"](https://www.cambridge.org/core/books/algorithms-on-strings/19049704C876795D95D8882C73257C70) by Crochemore, Hancart and Lecroq. PDF available [here](https://www.researchgate.net/publication/220693689_Algorithms_on_Strings).
 --
 -- @since 1.0.1
@@ -2110,29 +2137,22 @@ asciify w8
   | otherwise = Nothing
 
 indices :: ByteString -> ByteString -> [Int]
-indices needle haystack
-  | P.min needleLen haystackLen == 0 = []
-  | needleLen == 1 = BS.elemIndices (BS.head needle) haystack
-  | otherwise = go 0
+indices needle haystack = case BS.uncons needle of 
+  Nothing -> []
+  Just (h, t) -> case BS.elemIndices h haystack of
+    [] -> []
+    whole@(i : is) -> if BS.null t 
+                then whole
+                else go i is
   where
-    go :: Int -> [Int]
-    go j
-      | j > (haystackLen - needleLen) = []
-      | BS.index needle 1 /= BS.index haystack (j + 1) = go (j + kay)
-      | otherwise = do
-        let fragment = BS.take needleLen . BS.drop j $ haystack
-        if fragment == needle
-          then j : go (j + needleLen)
-          else go (j + ell)
-    kay :: Int
-    kay
-      | BS.head needle == BS.index needle 1 = 2
-      | otherwise = 1
-    ell :: Int
-    ell
-      | BS.head needle == BS.index needle 1 = 1
-      | otherwise = 2
+    go :: Int -> [Int] -> [Int]
+    go i is = let fragment = BS.take needleLen . BS.drop i $ haystack in
+      if fragment == needle
+      then i : case P.dropWhile (\j -> j - i < needleLen) is of 
+        [] -> []
+        (j : js) -> go j js 
+      else case is of 
+        [] -> []
+        (j : js) -> go j js
     needleLen :: Int
     needleLen = BS.length needle
-    haystackLen :: Int
-    haystackLen = BS.length haystack

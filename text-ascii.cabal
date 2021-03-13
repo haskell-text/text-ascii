@@ -60,7 +60,7 @@ benchmark string-search
 
   ghc-options:
     -Wall -Wcompat -Wincomplete-record-updates
-    -Wincomplete-uni-patterns -Wredundant-constraints -O2
+    -Wincomplete-uni-patterns -Wredundant-constraints -O0
 
   hs-source-dirs:   bench
   default-language: Haskell2010

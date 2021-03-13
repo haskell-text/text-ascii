@@ -4,6 +4,8 @@
 
 * Add `eitherFromText` and `eitherFromByteString` for clearer indicators of
   conversion failure.
+* Optimize string matching implementation, update documentation to indicate
+  this.
 
 ## 1.0.1 -- 2021-03-02
 
