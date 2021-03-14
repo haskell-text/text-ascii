@@ -1,3 +1,4 @@
+{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE QuasiQuotes #-}
@@ -2139,19 +2140,21 @@ asciify w8
 indices :: ByteString -> ByteString -> [Int]
 indices needle haystack = case BS.uncons needle of 
   Nothing -> []
-  Just (h, t) -> case BS.elemIndices h haystack of
-    [] -> []
-    whole@(i : is) -> case BS.uncons t of 
-      Nothing -> whole
-      Just _ -> go i is 
+  Just (h, t) -> let ixes = BS.elemIndices h haystack in 
+    case BS.uncons t of 
+      Nothing -> ixes
+      Just _ -> go ixes
   where
-    go i is = let fragment = BS.take needleLen . BS.drop i $ haystack in
-      if fragment == needle
-      then i : case P.dropWhile (\j -> j - i < needleLen) is of 
-        [] -> []
-        (j : js) -> go j js 
-      else case is of 
-        [] -> []
-        (j : js) -> go j js
+    go :: [Int] -> [Int]
+    go = \case
+      [] -> []
+      (i : is) -> let fragment = slice i in
+        if fragment == needle
+        then i : go (skip i is)
+        else go is
+    slice :: Int -> ByteString
+    slice i = BS.take needleLen . BS.drop i $ haystack
+    skip :: Int -> [Int] -> [Int]
+    skip i = P.dropWhile (\j -> j - i < needleLen)
     needleLen :: Int
     needleLen = BS.length needle
