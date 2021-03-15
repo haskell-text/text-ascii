@@ -1271,7 +1271,7 @@ splitOn :: AsciiText -> AsciiText -> [AsciiText]
 splitOn needle@(AsciiText n) haystack@(AsciiText h)
   | needleLen == 0 = [haystack]
   | length haystack == 0 = [empty]
-  | needleLen == 1 = split (== (AsciiChar . BS.head $ n)) haystack
+  | needleLen == 1 = coerce . BS.split (BS.head n) $ h
   | otherwise = go 0 (indices n h)
   where
     needleLen :: Int
