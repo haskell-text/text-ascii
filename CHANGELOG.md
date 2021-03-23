@@ -1,5 +1,10 @@
 # Revision history for text-ascii
 
+## 2.0.0 -- 
+
+* New back-end based on `ByteArray#`.
+* No longer depend on `text`, `bytestring`.
+
 ## 1.0.2 -- 
 
 * Add `eitherFromText` and `eitherFromByteString` for clearer indicators of

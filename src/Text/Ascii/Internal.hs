@@ -1,4 +1,5 @@
 {-# LANGUAGE DerivingVia #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE Trustworthy #-}
@@ -19,34 +20,33 @@
 -- /exactly/ what you are doing. You have been warned.
 module Text.Ascii.Internal where
 
-import Control.DeepSeq (NFData)
-import Data.ByteString (ByteString)
-import qualified Data.ByteString as BS
+import Control.DeepSeq (NFData (rnf))
+import Control.Monad (foldM_, when)
+import Control.Monad.ST (ST, runST)
 import Data.CaseInsensitive (FoldCase (foldCase))
 import Data.Char (chr, isAscii)
 import Data.Coerce (coerce)
+import Data.Foldable (foldl', traverse_)
 import Data.Hashable (Hashable)
-import qualified Data.List.NonEmpty as NE
+import Data.List.NonEmpty (NonEmpty ((:|)))
+import Data.Primitive.ByteArray
+  ( ByteArray,
+    MutableByteArray,
+    byteArrayFromListN,
+    compareByteArrays,
+    copyByteArray,
+    indexByteArray,
+    newByteArray,
+    readByteArray,
+    unsafeFreezeByteArray,
+    writeByteArray,
+  )
+import Data.Semigroup (sconcat, stimes)
 import Data.Word (Word8)
 import GHC.Exts (IsList (Item, fromList, fromListN, toList))
 import Numeric (showHex)
 import Optics.AffineTraversal (An_AffineTraversal, atraversal)
 import Optics.At.Core (Index, IxValue, Ixed (IxKind, ix))
-import Text.Megaparsec.Stream
-  ( Stream
-      ( Token,
-        Tokens,
-        chunkLength,
-        chunkToTokens,
-        take1_,
-        takeN_,
-        takeWhile_,
-        tokenToChunk,
-        tokensToChunk
-      ),
-    TraversableStream (reachOffset),
-    VisualStream (showTokens),
-  )
 import Type.Reflection (Typeable)
 
 -- | Represents valid ASCII characters, which are bytes from @0x00@ to @0x7f@.
@@ -111,38 +111,106 @@ pattern AsChar c <- AsciiChar (isJustAscii -> Just c)
 -- | A string of ASCII characters, represented as a packed byte array.
 --
 -- @since 1.0.0
-newtype AsciiText = AsciiText ByteString
-  deriving
-    ( -- | @since 1.0.0
-      Eq,
-      -- | @since 1.0.0
-      Ord,
-      -- | @since 1.0.0
-      NFData,
-      -- | @since 1.0.0
-      Semigroup,
-      -- | @since 1.0.0
-      Monoid,
-      -- | @since 1.0.0
-      Show
-    )
-    via ByteString
+data AsciiText
+  = AT {-# UNPACK #-} !ByteArray {-# UNPACK #-} !Int {-# UNPACK #-} !Int
+
+-- Backing store, offset index, length
+-- Maintains the following invariants:
+-- 1) offset, length > 0
+-- 2) offset + length <= ba.length
+
+-- | @since 1.0.0
+instance Eq AsciiText where
+  {-# INLINEABLE (==) #-}
+  AT ba off len == AT ba' off' len'
+    | len /= len' = False
+    | otherwise = case compareByteArrays ba off ba' off' len of
+      EQ -> True
+      _ -> False
+
+-- | @since 1.0.0
+instance Ord AsciiText where
+  {-# INLINEABLE compare #-}
+  compare (AT ba off len) (AT ba' off' len') =
+    compareByteArrays ba off ba' off' (min len len') <> compare len len'
+
+-- | @since 1.0.0
+instance NFData AsciiText where
+  {-# INLINEABLE rnf #-}
+  rnf (AT _ off len) = off `seq` len `seq` ()
+
+-- | @since 1.0.0
+instance Show AsciiText where
+  {-# INLINEABLE show #-}
+  show (AT ba off len) =
+    ['"'] <> fmap go [off .. off + len - 1] <> ['"']
+    where
+      go :: Int -> Char
+      go i = chr . fromIntegral . indexByteArray @Word8 ba $ i
+
+instance Semigroup AsciiText where
+  {-# INLINEABLE (<>) #-}
+  AT ba off len <> AT ba' off' len' = runST $ do
+    mba <- newByteArray (len + len')
+    copyByteArray mba 0 ba off len
+    copyByteArray mba len ba' off' len'
+    frozen <- unsafeFreezeByteArray mba
+    pure . AT frozen 0 $ len + len'
+  {-# INLINEABLE sconcat #-}
+  sconcat ne =
+    let totalLen = foldl' go 0 ne
+     in runST $ do
+          mba <- newByteArray totalLen
+          foldM_ (go2 mba) 0 ne
+          frozen <- unsafeFreezeByteArray mba
+          pure . AT frozen 0 $ totalLen
+    where
+      go :: Int -> AsciiText -> Int
+      go acc (AT _ _ len) = acc + len
+      go2 :: MutableByteArray s -> Int -> AsciiText -> ST s Int
+      go2 mba pos (AT ba off len) = do
+        copyByteArray mba pos ba off len
+        pure (pos + len)
+  {-# INLINEABLE stimes #-}
+  stimes n (AT ba off len) = runST $ do
+    let n' = fromIntegral n
+    let totalLen = n' * len
+    mba <- newByteArray totalLen
+    go mba n' 0
+    frozen <- unsafeFreezeByteArray mba
+    pure . AT frozen 0 $ totalLen
+    where
+      go :: MutableByteArray s -> Int -> Int -> ST s ()
+      go mba lim pos
+        | pos == lim = pure ()
+        | otherwise = do
+          copyByteArray mba pos ba off len
+          go mba lim (pos + len)
+
+-- | @since 1.0.0
+instance Monoid AsciiText where
+  {-# INLINEABLE mempty #-}
+  mempty = AT (byteArrayFromListN @Word8 0 mempty) 0 0
+  {-# INLINEABLE mconcat #-}
+  mconcat = \case
+    [] -> mempty
+    (t : ts) -> sconcat (t :| ts)
 
 -- | @since 1.0.0
 instance IsList AsciiText where
   type Item AsciiText = AsciiChar
   {-# INLINEABLE fromList #-}
-  fromList =
-    coerce @ByteString @AsciiText
-      . fromList
-      . coerce @[AsciiChar] @[Word8]
+  fromList ell =
+    let len = length ell
+     in AT (byteArrayFromListN len . coerce @_ @[Word8] $ ell) 0 len
   {-# INLINEABLE fromListN #-}
-  fromListN n =
-    coerce @ByteString @AsciiText
-      . fromListN n
-      . coerce @[AsciiChar] @[Word8]
+  fromListN len ell =
+    AT (byteArrayFromListN len . coerce @_ @[Word8] $ ell) 0 len
   {-# INLINEABLE toList #-}
-  toList = coerce . toList . coerce @AsciiText @ByteString
+  toList (AT ba off len) = fmap go [off .. off + len - 1]
+    where
+      go :: Int -> AsciiChar
+      go = coerce @Word8 @AsciiChar . indexByteArray ba
 
 -- | @since 1.0.1
 type instance Index AsciiText = Int
@@ -157,25 +225,36 @@ instance Ixed AsciiText where
   ix i = atraversal get put
     where
       get :: AsciiText -> Either AsciiText AsciiChar
-      get (AsciiText at) = case at BS.!? i of
-        Nothing -> Left . AsciiText $ at
-        Just w8 -> Right . AsciiChar $ w8
+      get t@(AT ba off len)
+        | i >= 0 && i < len =
+          pure . AsciiChar . indexByteArray ba $ off + i
+        | otherwise = Left t
       put :: AsciiText -> AsciiChar -> AsciiText
-      put (AsciiText at) (AsciiChar ac) = case BS.splitAt i at of
-        (lead, end) -> case BS.uncons end of
-          Nothing -> AsciiText at
-          Just (_, end') -> AsciiText (lead <> BS.singleton ac <> end')
+      put t@(AT ba off len) (AsciiChar w8)
+        | i >= 0 && i < len = runST $ do
+          mba <- newByteArray len
+          copyByteArray mba 0 ba off len
+          writeByteArray mba i w8
+          frozen <- unsafeFreezeByteArray mba
+          pure . AT frozen 0 $ len
+        | otherwise = t
 
 -- | @since 1.0.1
 instance FoldCase AsciiText where
   {-# INLINEABLE foldCase #-}
-  foldCase (AsciiText bs) = AsciiText . BS.map go $ bs
+  foldCase (AT ba off len) = runST $ do
+    mba <- newByteArray len
+    copyByteArray mba 0 ba off len
+    traverse_ (go mba) [0 .. len - 1]
+    frozen <- unsafeFreezeByteArray mba
+    pure . AT frozen 0 $ len
     where
-      go :: Word8 -> Word8
-      go w8
-        | 65 <= w8 && w8 <= 90 = w8 + 32
-        | otherwise = w8
+      go :: MutableByteArray s -> Int -> ST s ()
+      go mba i = do
+        w8 <- readByteArray @Word8 mba i
+        when (65 <= w8 && w8 <= 90) (writeByteArray mba i (w8 + 32))
 
+{-
 -- | @since 1.0.1
 instance Stream AsciiText where
   type Token AsciiText = AsciiChar
@@ -207,6 +286,7 @@ instance VisualStream AsciiText where
 instance TraversableStream AsciiText where
   {-# INLINEABLE reachOffset #-}
   reachOffset o ps = coerce (reachOffset o ps)
+-}
 
 -- Helpers
 

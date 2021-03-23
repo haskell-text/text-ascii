@@ -31,7 +31,7 @@ module Text.Ascii.Unsafe
     foldl1,
     foldl1',
     foldr1,
-    foldr1',
+    -- foldr1',
     maximum,
     minimum,
     scanl1,
@@ -41,16 +41,18 @@ module Text.Ascii.Unsafe
 where
 
 import Control.DeepSeq (NFData)
-import Data.ByteString (ByteString)
-import qualified Data.ByteString as BS
 import Data.CaseInsensitive (FoldCase)
+import Data.Char (isAscii, ord)
 import Data.Coerce (coerce)
+import qualified Data.Foldable as F
 import Data.Hashable (Hashable)
 import Data.Kind (Type)
+import qualified Data.List as L
+import Data.Primitive.ByteArray (indexByteArray)
 import Data.Word (Word8)
-import GHC.Exts (IsList)
+import GHC.Exts (IsList (fromList, toList))
 import GHC.Read (expectP, lexP, parens, readPrec)
-import Text.Ascii.Internal (AsciiChar (AsciiChar), AsciiText (AsciiText))
+import Text.Ascii.Internal (AsciiChar (AsciiChar), AsciiText (AT))
 import Text.Megaparsec.Stream (Stream, TraversableStream, VisualStream)
 import Text.ParserCombinators.ReadPrec (ReadPrec)
 import Text.Read (Lexeme (Char))
@@ -172,6 +174,17 @@ instance Enum (Unsafe AsciiChar) where
 -- | @since 1.0.1
 instance Read (Unsafe AsciiText) where
   {-# INLINEABLE readPrec #-}
+  readPrec = do
+    strink :: String <- readPrec
+    asciiChars <- traverse go strink
+    pure . Unsafe . fromList $ asciiChars
+    where
+      go :: Char -> ReadPrec AsciiChar
+      go c
+        | isAscii c = pure . AsciiChar . fromIntegral . ord $ c
+        | otherwise = fail $ "Read: Not an ASCII character: " <> [c]
+
+{-
   readPrec = Unsafe . AsciiText <$> go
     where
       go :: ReadPrec ByteString
@@ -180,6 +193,7 @@ instance Read (Unsafe AsciiText) where
         case BS.findIndex (>= 128) bs of
           Nothing -> pure bs
           Just i -> error $ "Non-ASCII byte at index " <> show i
+-}
 
 -- Functions
 
@@ -201,7 +215,7 @@ instance Read (Unsafe AsciiText) where
 --
 -- @since 1.0.1
 head :: Unsafe AsciiText -> AsciiChar
-head = coerce BS.head
+head (Unsafe (AT ba off _)) = AsciiChar . indexByteArray ba $ off
 
 -- | Yield the last character of the text.
 --
@@ -214,7 +228,7 @@ head = coerce BS.head
 --
 -- @since 1.0.1
 last :: Unsafe AsciiText -> AsciiChar
-last = coerce BS.last
+last (Unsafe (AT ba off len)) = AsciiChar . indexByteArray ba $ off + len - 1
 
 -- | Yield the text without its first character.
 --
@@ -227,7 +241,7 @@ last = coerce BS.last
 --
 -- @since 1.0.1
 tail :: Unsafe AsciiText -> Unsafe AsciiText
-tail = coerce BS.tail
+tail (Unsafe (AT ba off len)) = Unsafe . AT ba (off + 1) $ len - 1
 
 -- | Yield the text without its last character.
 --
@@ -240,7 +254,7 @@ tail = coerce BS.tail
 --
 -- @since 1.0.1
 init :: Unsafe AsciiText -> Unsafe AsciiText
-init = coerce BS.init
+init (Unsafe (AT ba off len)) = Unsafe . AT ba off $ len - 1
 
 -- | Left-associative fold of a text without a base case.
 --
@@ -250,7 +264,7 @@ init = coerce BS.init
 --
 -- @since 1.0.1
 foldl1 :: (AsciiChar -> AsciiChar -> AsciiChar) -> Unsafe AsciiText -> AsciiChar
-foldl1 = coerce BS.foldl1
+foldl1 f (Unsafe at) = F.foldl1 f . toList $ at
 
 -- | Left-associative fold of a text without a base case, strict in the
 -- accumulator.
@@ -261,7 +275,7 @@ foldl1 = coerce BS.foldl1
 --
 -- @since 1.0.1
 foldl1' :: (AsciiChar -> AsciiChar -> AsciiChar) -> Unsafe AsciiText -> AsciiChar
-foldl1' = coerce BS.foldl1'
+foldl1' f (Unsafe at) = L.foldl1' f . toList $ at
 
 -- | Right-associative fold of a text without a base case.
 --
@@ -271,8 +285,9 @@ foldl1' = coerce BS.foldl1'
 --
 -- @since 1.0.1
 foldr1 :: (AsciiChar -> AsciiChar -> AsciiChar) -> Unsafe AsciiText -> AsciiChar
-foldr1 = coerce BS.foldr1
+foldr1 f (Unsafe at) = F.foldr1 f . toList $ at
 
+{-
 -- | Right-associative fold of a text without a base case, strict in the
 -- accumulator.
 --
@@ -282,7 +297,8 @@ foldr1 = coerce BS.foldr1
 --
 -- @since 1.0.1
 foldr1' :: (AsciiChar -> AsciiChar -> AsciiChar) -> Unsafe AsciiText -> AsciiChar
-foldr1' = coerce BS.foldr1'
+foldr1' f (Unsafe at) = _
+-}
 
 -- | Yield the character in the text whose byte representation is numerically
 -- the largest.
@@ -298,7 +314,7 @@ foldr1' = coerce BS.foldr1'
 --
 -- @since 1.0.1
 maximum :: Unsafe AsciiText -> AsciiChar
-maximum = coerce BS.maximum
+maximum (Unsafe at) = F.maximum . toList $ at
 
 -- | Yield the character in the text whose byte representation is numerically
 -- the smallest.
@@ -314,7 +330,7 @@ maximum = coerce BS.maximum
 --
 -- @since 1.0.1
 minimum :: Unsafe AsciiText -> AsciiChar
-minimum = coerce BS.minimum
+minimum (Unsafe at) = F.minimum . toList $ at
 
 -- | 'scanl1' is similar to 'foldl1', but returns a list of successive values
 -- from the left.
@@ -331,7 +347,7 @@ scanl1 ::
   Unsafe AsciiText ->
   -- | Output of length \(n - 1\)
   Unsafe AsciiText
-scanl1 = coerce BS.scanl1
+scanl1 f (Unsafe at) = Unsafe . fromList . L.scanl1 f . toList $ at
 
 -- | 'scanr1' is similar to 'foldr1', but returns a list of successive values
 -- from the right.
@@ -348,7 +364,7 @@ scanr1 ::
   Unsafe AsciiText ->
   -- | Output of length \(n - 1\)
   Unsafe AsciiText
-scanr1 = coerce BS.scanr1
+scanr1 f (Unsafe at) = Unsafe . fromList . L.scanr1 f . toList $ at
 
 -- | Yield the character at the given position.
 --
@@ -364,7 +380,7 @@ scanr1 = coerce BS.scanr1
 --
 -- @since 1.0.1
 index :: Unsafe AsciiText -> Int -> AsciiChar
-index = coerce BS.index
+index (Unsafe (AT ba off _)) i = AsciiChar . indexByteArray ba $ off + i
 
 -- Helpers
 

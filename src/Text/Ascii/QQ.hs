@@ -14,8 +14,6 @@
 -- /exactly/ what you are doing. You have been warned.
 module Text.Ascii.QQ where
 
-import Data.ByteString (ByteString)
-import qualified Data.ByteString as BS
 import Data.Char
   ( isAlphaNum,
     isAscii,
@@ -25,7 +23,7 @@ import Data.Char
   )
 import Data.Functor (void)
 import Data.Void (Void)
-import GHC.Exts (IsList (fromList))
+import GHC.Exts (IsList (fromListN))
 import Language.Haskell.TH.Quote (QuasiQuoter (QuasiQuoter))
 import Language.Haskell.TH.Syntax
   ( Dec,
@@ -34,8 +32,9 @@ import Language.Haskell.TH.Syntax
     Pat,
     Q,
     Type,
+    lift,
   )
-import Text.Ascii.Internal (AsciiChar (AsciiChar), AsciiText (AsciiText))
+import Text.Ascii.Internal (AsciiChar (AsciiChar))
 import Text.Megaparsec
   ( Parsec,
     between,
@@ -88,27 +87,27 @@ ascii = QuasiQuoter asciiQQ (errPat "ascii") (errType "ascii") (errDec "ascii")
 asciiQQ :: String -> Q Exp
 asciiQQ input = case parse (between open close go) "" input of
   Left err -> fail . errorBundlePretty $ err
-  Right result ->
-    pure
-      . AppE (ConE 'AsciiText)
-      . AppE (VarE 'fromList)
-      . ListE
-      . fmap (LitE . IntegerL . fromIntegral)
-      . BS.unpack
-      $ result
+  Right result -> do
+    len <- lift . length $ result
+    let src =
+          ListE
+            . fmap (AppE (ConE 'AsciiChar) . LitE . IntegerL . fromIntegral . ord)
+            $ result
+    pure . AppE (AppE (VarE 'fromListN) len) $ src
   where
     open :: Parsec Void String ()
     open = space *> (void . single $ '"')
     close :: Parsec Void String ()
     close = single '"' *> space *> eof
-    go :: Parsec Void String ByteString
-    go = BS.pack <$> manyTill asciiByte (lookAhead . try . single $ '"')
+    go :: Parsec Void String String
+    go = manyTill asciiByte (lookAhead . try . single $ '"')
+    asciiByte :: Parsec Void String Char
     asciiByte = do
       c <- satisfy isAscii
       case c of
         '\\' -> do
           c' <- oneOf "0abfnrtv\\\""
-          pure . fromIntegral . ord $ case c' of
+          pure $ case c' of
             '0' -> '\0'
             'a' -> '\a'
             'b' -> '\b'
@@ -119,7 +118,7 @@ asciiQQ input = case parse (between open close go) "" input of
             'v' -> '\v'
             '\\' -> '\\'
             _ -> '"'
-        _ -> pure . fromIntegral . ord $ c
+        _ -> pure c
 
 charQQ :: String -> Q Exp
 charQQ input = case parse (between open close go) "" input of
