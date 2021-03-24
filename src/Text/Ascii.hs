@@ -4,6 +4,7 @@
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE Trustworthy #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 
 -- |
@@ -134,14 +135,17 @@ module Text.Ascii
     zip,
     zipWith,
 
-    -- * Conversions
+    -- * Decoding
+    decodeAscii,
+    decodeAsciiMay,
+    decodeBytesAscii,
+    decodeBytesAsciiMay,
 
-    -- fromText,
-    -- eitherFromText,
-    -- fromByteString,
-    -- eitherFromByteString,
-    -- toText,
-    -- toByteString,
+    -- * Encoding
+    encodeAscii,
+
+    -- * Conversion
+    toBytes,
 
     -- * Optics
 
@@ -158,6 +162,9 @@ import Control.Category ((.))
 import Control.Monad (foldM_)
 import Control.Monad.ST (ST, runST)
 import Data.Bool (Bool (False, True), otherwise, (&&))
+import Data.Char (Char, chr, isAscii, ord)
+import Data.Coerce (coerce)
+import Data.Either (Either (Left))
 import Data.Foldable (Foldable (foldMap), traverse_)
 import qualified Data.Foldable as F
 import qualified Data.List as L
@@ -173,7 +180,8 @@ import Data.Primitive.ByteArray
     writeByteArray,
   )
 import Data.Semigroup (stimes)
-import GHC.Exts (fromList, fromListN, toList)
+import Data.Word (Word8)
+import GHC.Exts (IsList (Item, fromList, fromListN, toList))
 import Text.Ascii.Internal (AsciiChar (AsciiChar), AsciiText (AT))
 import Text.Ascii.QQ (ascii, char)
 import Prelude
@@ -2047,121 +2055,110 @@ zipWith f t1 t2 = unfoldr go (t1, t2)
       (h2, t2') <- uncons acc2
       pure (f h1 h2, (t1', t2'))
 
--- Conversions
+-- Decoding
 
--- | Try and convert a 'Text' into an 'AsciiText'. Gives 'Nothing' if the 'Text'
--- contains any symbols which lack an ASCII equivalent.
+-- | Attempt to decode a string-like type into an ASCII text. Gives @'Left' (i,
+-- c)@ on failure, where @i@ is the (zero-based) position of the input where a
+-- non-ASCII character first occurred, and @c@ is said character.
 --
--- >>> fromText "catboy"
+-- >>> decodeAscii ("catboy" :: String)
+-- Right "catboy"
+-- >>> decodeAscii ("😺😺😺😺😺" :: String)
+-- Left (0, '\128570')
+--
+-- /Complexity:/ \(\Theta(n)\)
+--
+-- @since 2.0.0
+decodeAscii :: (IsList s, Item s ~ Char) => s -> Either (Int, Char) AsciiText
+decodeAscii = P.fmap fromList . P.traverse go . P.zip [0 ..] . toList
+  where
+    go :: (Int, Char) -> Either (Int, Char) AsciiChar
+    go (i, c)
+      | isAscii c = pure . AsciiChar . P.fromIntegral . ord $ c
+      | otherwise = Left (i, c)
+
+-- | As 'decodeAscii', but throwing away the error information.
+--
+-- >>> decodeAsciiMay ("catboy" :: String)
 -- Just "catboy"
--- >>> fromText "😺😺😺😺😺"
+-- >>> decodeAsciiMay ("😺😺😺😺😺" :: String)
 -- Nothing
 --
 -- /Complexity:/ \(\Theta(n)\)
 --
--- @since 1.0.0
+-- @since 2.0.0
+decodeAsciiMay :: (IsList s, Item s ~ Char) => s -> Maybe AsciiText
+decodeAsciiMay = P.either (P.const Nothing) Just . decodeAscii
 
-{-
-fromText :: Text -> Maybe AsciiText
-fromText t = case T.find (not . isAscii) t of
-  Nothing -> pure . AsciiText . encodeUtf8 $ t
-  Just _ -> Nothing
--}
-
--- | Try and convert a 'Text' into an 'AsciiText'. Gives @'Left' c@ if the 'Text'
--- contains a 'Char' @c@ that lacks an ASCII representation.
+-- | Attempt to decode a bytestring-like type into an ASCII text. Gives @'Left'
+-- (i, w8)@ on failure, where @i@ is the (zero-based) position of the input
+-- where an out-of-range byte (above 127) first occurred, and @w8@ is said byte.
 --
--- >>> eitherFromText "catboy"
--- Right "catboy"
--- >>> eitherFromText "😺😺😺😺😺"
--- Left '\128570'
+-- >>> decodeBytesAscii ([0x6e, 0x79, 0x61, 0x6e] :: [Word8])
+-- Right "nyan"
+-- >>> decodeBytesAscii ([0x80] :: [Word8])
+-- Left (0,128)
 --
 -- /Complexity:/ \(\Theta(n)\)
 --
--- @since 1.0.2
+-- @since 2.0.0
+decodeBytesAscii :: (IsList s, Item s ~ Word8) => s -> Either (Int, Word8) AsciiText
+decodeBytesAscii = P.fmap fromList . P.traverse go . P.zip [0 ..] . toList
+  where
+    go :: (Int, Word8) -> Either (Int, Word8) AsciiChar
+    go (i, w8)
+      | w8 <= 127 = pure . AsciiChar $ w8
+      | otherwise = Left (i, w8)
 
-{-
-eitherFromText :: Text -> P.Either P.Char AsciiText
-eitherFromText t = case T.find (not . isAscii) t of
-  Nothing -> pure . AsciiText . encodeUtf8 $ t
-  Just c -> P.Left c
--}
-
--- | Try and convert a 'ByteString' into an 'AsciiText'. Gives 'Nothing' if the
--- 'ByteString' contains any bytes outside the ASCII range (that is, from 0 to
--- 127 inclusive).
+-- | As 'decodeBytesAscii', but throwing away the error information.
 --
--- >>> fromByteString "catboy"
--- Just "catboy"
--- >>> fromByteString . BS.pack $ [128]
+-- >>> decodeBytesAscii ([0x6e, 0x79, 0x61, 0x6e] :: [Word8])
+-- Just "nyan"
+-- >>> decodeBytesAscii ([0x80] :: [Word8])
 -- Nothing
 --
 -- /Complexity:/ \(\Theta(n)\)
 --
--- @since 1.0.0
+-- @since 2.0.0
+decodeBytesAsciiMay :: (IsList s, Item s ~ Word8) => s -> Maybe AsciiText
+decodeBytesAsciiMay = P.either (P.const Nothing) Just . decodeBytesAscii
 
-{-
-fromByteString :: ByteString -> Maybe AsciiText
-fromByteString bs = case BS.find (> 127) bs of
-  Nothing -> pure . AsciiText $ bs
-  Just _ -> Nothing
--}
+-- Encoding
 
--- | Try and convert a 'ByteString' into an 'AsciiText'. Gives @'Left' w8@ if
--- the 'ByteString' contains a byte @w8@ that is outside the ASCII range (that
--- is, from 0 to 127 inclusive).
+-- | Encode an ASCII text into a string-like type.
 --
--- >>> eitherFromByteString "catboy"
--- Right "catboy"
--- >>> eitherFromByteString . BS.pack $ [128]
--- Left 128
---
--- /Complexity:/ \(\Theta(n)\)
---
--- @since 1.0.2
-
-{-
-eitherFromByteString :: ByteString -> P.Either Word8 AsciiText
-eitherFromByteString bs = case BS.find (> 127) bs of
-  Nothing -> pure . AsciiText $ bs
-  Just w8 -> P.Left w8
--}
-
--- | Convert an 'AsciiText' into a 'Text' (by copying).
---
--- >>> toText empty
+-- >>> encodeAscii empty :: String
 -- ""
--- >>> toText . singleton $ [char| 'w' |]
+-- >>> encodeAscii . singleton $ [char| 'w' |] :: String
 -- "w"
--- >>> toText [ascii| "nyan" |]
+-- >>> encodeAscii [ascii| "nyan" |] :: String
 -- "nyan"
 --
 -- /Complexity:/ \(\Theta(n)\)
 --
--- @since 1.0.0
+-- @since 2.0.0
+encodeAscii :: (IsList s, Item s ~ Char) => AsciiText -> s
+encodeAscii =
+  fromList
+    . P.fmap (chr . P.fromIntegral . coerce @AsciiChar @Word8)
+    . toList
 
-{-
-toText :: AsciiText -> Text
-toText (AsciiText bs) = decodeUtf8 bs
--}
+-- Conversion
 
--- | Reinterpret an 'AsciiText' as a 'ByteString' (without copying).
+-- | Convert an ASCII text into a sequence of bytes.
 --
--- >>> toByteString empty
--- ""
--- >>> toByteString . singleton $ [char| 'w' |]
--- "w"
--- >>> toByteString [ascii| "nyan" |]
--- "nyan"
+-- >>> toBytes empty :: [Word8]
+-- []
+-- >>> toBytes . singleton $ [char| 'w' |] :: [Word8]
+-- []
+-- >>> toBytes [ascii| "nyan"] :: [Word8]
+-- []
 --
--- /Complexity:/ \(\Theta(1)\)
+-- /Complexity:/ \(\Theta(n)\)
 --
--- @since 1.0.0
-
-{-
-toByteString :: AsciiText -> ByteString
-toByteString = coerce
--}
+-- @since 2.0.0
+toBytes :: (IsList s, Item s ~ Word8) => AsciiText -> s
+toBytes = fromList . P.fmap coerce . toList
 
 -- Optics
 

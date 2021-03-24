@@ -5,11 +5,9 @@
 * New back-end based on `ByteArray#`.
 * No longer depend on `text`, `bytestring`.
 * Implement `decodeAscii`, `decodeBytesAscii` in `Unsafe`.
-
-## 1.0.2 -- 
-
-* Add `eitherFromText` and `eitherFromByteString` for clearer indicators of
-  conversion failure.
+* Remove `fromText`, `fromByteString`, `toText`, `toByteString`.
+* Implement `decodeAscii`, `decodeAsciiMay`, `decodeBytesAscii`,
+  `decodeBytesAsciiMay`, `encodeAscii`, `toBytes` in `Text.Ascii`.
 * Optimize string matching implementation, update documentation to indicate
   this.
 
