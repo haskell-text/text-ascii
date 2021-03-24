@@ -19,6 +19,14 @@
 -- This module is designed for qualified importing:
 --
 -- > import qualified Text.Ascii.Unsafe as Unsafe
+--
+-- = Note
+--
+-- The functions in this module still perform bounds checks and ensure
+-- invariants are maintained; thus, they're not any faster than their total
+-- cousins. The goals of this module are to allow the use of partial functions
+-- in contexts where you know the requirements hold, but can't prove it to the
+-- compiler.
 module Text.Ascii.Unsafe
   ( -- * Types
     Unsafe (..),
@@ -31,12 +39,16 @@ module Text.Ascii.Unsafe
     foldl1,
     foldl1',
     foldr1,
-    -- foldr1',
+    foldr1',
     maximum,
     minimum,
     scanl1,
     scanr1,
     index,
+
+    -- * Decoding
+    decodeAscii,
+    decodeBytesAscii,
   )
 where
 
@@ -48,9 +60,10 @@ import qualified Data.Foldable as F
 import Data.Hashable (Hashable)
 import Data.Kind (Type)
 import qualified Data.List as L
+import Data.Maybe (fromMaybe)
 import Data.Primitive.ByteArray (indexByteArray)
 import Data.Word (Word8)
-import GHC.Exts (IsList (fromList, toList))
+import GHC.Exts (IsList (Item, fromList, toList))
 import GHC.Read (expectP, lexP, parens, readPrec)
 import Text.Ascii.Internal (AsciiChar (AsciiChar), AsciiText (AT))
 import Text.Megaparsec.Stream (Stream, TraversableStream, VisualStream)
@@ -184,17 +197,6 @@ instance Read (Unsafe AsciiText) where
         | isAscii c = pure . AsciiChar . fromIntegral . ord $ c
         | otherwise = fail $ "Read: Not an ASCII character: " <> [c]
 
-{-
-  readPrec = Unsafe . AsciiText <$> go
-    where
-      go :: ReadPrec ByteString
-      go = do
-        bs :: ByteString <- readPrec
-        case BS.findIndex (>= 128) bs of
-          Nothing -> pure bs
-          Just i -> error $ "Non-ASCII byte at index " <> show i
--}
-
 -- Functions
 
 -- $setup
@@ -215,7 +217,10 @@ instance Read (Unsafe AsciiText) where
 --
 -- @since 1.0.1
 head :: Unsafe AsciiText -> AsciiChar
-head (Unsafe (AT ba off _)) = AsciiChar . indexByteArray ba $ off
+head (Unsafe (AT ba off len))
+  | len == 0 =
+    error "Tried to take the head of an empty text."
+  | otherwise = AsciiChar . indexByteArray ba $ off
 
 -- | Yield the last character of the text.
 --
@@ -228,7 +233,10 @@ head (Unsafe (AT ba off _)) = AsciiChar . indexByteArray ba $ off
 --
 -- @since 1.0.1
 last :: Unsafe AsciiText -> AsciiChar
-last (Unsafe (AT ba off len)) = AsciiChar . indexByteArray ba $ off + len - 1
+last (Unsafe (AT ba off len))
+  | len == 0 =
+    error "Tried to take the last of an empty text."
+  | otherwise = AsciiChar . indexByteArray ba $ off + len - 1
 
 -- | Yield the text without its first character.
 --
@@ -241,7 +249,10 @@ last (Unsafe (AT ba off len)) = AsciiChar . indexByteArray ba $ off + len - 1
 --
 -- @since 1.0.1
 tail :: Unsafe AsciiText -> Unsafe AsciiText
-tail (Unsafe (AT ba off len)) = Unsafe . AT ba (off + 1) $ len - 1
+tail (Unsafe (AT ba off len))
+  | len == 0 =
+    error "Tried to take the tail of an empty text."
+  | otherwise = Unsafe . AT ba (off + 1) $ len - 1
 
 -- | Yield the text without its last character.
 --
@@ -254,7 +265,10 @@ tail (Unsafe (AT ba off len)) = Unsafe . AT ba (off + 1) $ len - 1
 --
 -- @since 1.0.1
 init :: Unsafe AsciiText -> Unsafe AsciiText
-init (Unsafe (AT ba off len)) = Unsafe . AT ba off $ len - 1
+init (Unsafe (AT ba off len))
+  | len == 0 =
+    error "Tried to take the init of an empty text."
+  | otherwise = Unsafe . AT ba off $ len - 1
 
 -- | Left-associative fold of a text without a base case.
 --
@@ -287,7 +301,6 @@ foldl1' f (Unsafe at) = L.foldl1' f . toList $ at
 foldr1 :: (AsciiChar -> AsciiChar -> AsciiChar) -> Unsafe AsciiText -> AsciiChar
 foldr1 f (Unsafe at) = F.foldr1 f . toList $ at
 
-{-
 -- | Right-associative fold of a text without a base case, strict in the
 -- accumulator.
 --
@@ -297,8 +310,13 @@ foldr1 f (Unsafe at) = F.foldr1 f . toList $ at
 --
 -- @since 1.0.1
 foldr1' :: (AsciiChar -> AsciiChar -> AsciiChar) -> Unsafe AsciiText -> AsciiChar
-foldr1' f (Unsafe at) = _
--}
+foldr1' f (Unsafe at) = go . toList $ at
+  where
+    go :: [AsciiChar] -> AsciiChar
+    go = \case
+      [x] -> x
+      (x : xs) -> x `seq` f x (go xs)
+      [] -> error "Attempted to foldr1' an empty text"
 
 -- | Yield the character in the text whose byte representation is numerically
 -- the largest.
@@ -380,7 +398,51 @@ scanr1 f (Unsafe at) = Unsafe . fromList . L.scanr1 f . toList $ at
 --
 -- @since 1.0.1
 index :: Unsafe AsciiText -> Int -> AsciiChar
-index (Unsafe (AT ba off _)) i = AsciiChar . indexByteArray ba $ off + i
+index (Unsafe (AT ba off len)) i
+  | i < 0 = error $ "Attempted to index text at negative position: " <> show i
+  | i >= len = error $ "Attempted to index text outside of bounds: " <> show i
+  | otherwise = AsciiChar . indexByteArray ba $ off + i
+
+-- | Unsafely decodes any string-like type into an ASCII text.
+--
+-- /Requirements:/ Every element of the input must be representable as ASCII.
+--
+-- >>> decodeAscii ("I am a catboy" :: String)
+-- "I am a catboy"
+--
+-- /Complexity:/ \(\Theta(n)\)
+--
+-- @since 2.0.0
+decodeAscii :: (IsList s, Item s ~ Char) => s -> Unsafe AsciiText
+decodeAscii = Unsafe . fromList . fromMaybe err . traverse go . toList
+  where
+    err :: [AsciiChar]
+    err = error "Failed to decode string into ASCII"
+    go :: Char -> Maybe AsciiChar
+    go c
+      | isAscii c = pure . AsciiChar . fromIntegral . ord $ c
+      | otherwise = Nothing
+
+-- | Unsafely decodes any bytestring-like type into an ASCII text.
+--
+-- /Requirements:/ Every byte of the input must be between 0x00 and 0x7F
+-- inclusive.
+--
+-- >>> decodeAsciiBytes ([0x6e, 0x79, 0x61, 0x6e] :: [Word8])
+-- "nyan"
+--
+-- /Complexity:/ \(\Theta(n)\)
+--
+-- @since 2.0.0
+decodeBytesAscii :: (IsList s, Item s ~ Word8) => s -> Unsafe AsciiText
+decodeBytesAscii = Unsafe . fromList . fromMaybe err . traverse go . toList
+  where
+    err :: [AsciiChar]
+    err = error "Failed decode bytes into ASCII"
+    go :: Word8 -> Maybe AsciiChar
+    go w8
+      | w8 <= 127 = Just . AsciiChar $ w8
+      | otherwise = Nothing
 
 -- Helpers
 

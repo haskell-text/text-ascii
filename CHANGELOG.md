@@ -4,6 +4,7 @@
 
 * New back-end based on `ByteArray#`.
 * No longer depend on `text`, `bytestring`.
+* Implement `decodeAscii`, `decodeBytesAscii` in `Unsafe`.
 
 ## 1.0.2 -- 
 
