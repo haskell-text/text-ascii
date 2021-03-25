@@ -1,6 +1,7 @@
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE MagicHash #-}
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE Trustworthy #-}
 {-# LANGUAGE TypeApplications #-}
@@ -43,7 +44,7 @@ module Text.Ascii
     intercalate,
     -- intersperse,
     -- transpose,
-    -- reverse,
+    reverse,
     -- replace,
 
     -- ** Justification
@@ -160,6 +161,7 @@ where
 
 import Control.Category ((.))
 import Control.Monad (foldM_)
+import Control.Monad.Primitive (primitive_)
 import Control.Monad.ST (ST, runST)
 import Data.Bool (Bool (False, True), otherwise, (&&))
 import Data.Char (Char, chr, isAscii, ord)
@@ -171,7 +173,8 @@ import qualified Data.List as L
 import Data.Maybe (Maybe (Just, Nothing))
 import Data.Monoid (mempty)
 import Data.Primitive.ByteArray
-  ( MutableByteArray,
+  ( ByteArray (ByteArray),
+    MutableByteArray (MutableByteArray),
     compareByteArrays,
     copyByteArray,
     indexByteArray,
@@ -181,12 +184,17 @@ import Data.Primitive.ByteArray
   )
 import Data.Semigroup (stimes)
 import Data.Word (Word8)
-import GHC.Exts (IsList (Item, fromList, fromListN, toList))
+import GHC.Exts
+  ( Int (I#),
+    IsList (Item, fromList, fromListN, toList),
+    byteSwap64#,
+    indexWord8ArrayAsWord64#,
+    writeWord8ArrayAsWord64#,
+  )
 import Text.Ascii.Internal (AsciiChar (AsciiChar), AsciiText (AT))
 import Text.Ascii.QQ (ascii, char)
 import Prelude
-  ( Int,
-    pure,
+  ( pure,
     ($),
     (*),
     (+),
@@ -411,6 +419,7 @@ intersperse (AsciiChar w8) at@(AT ba off len) = case len of
 -- @since 1.0.0
 transpose :: [AsciiText] -> [AsciiText]
 transpose = _
+-}
 
 -- | Reverse the text.
 --
@@ -425,10 +434,40 @@ transpose = _
 --
 -- @since 1.0.0
 reverse :: AsciiText -> AsciiText
-reverse at@(AT ba off len) = case len of
+reverse at@(AT ba@(ByteArray ba#) off len) = case len of
   0 -> at
   1 -> at
-  _ -> runST $ do
+  _ -> go
+  where
+    go :: AsciiText
+    go = runST $ do
+      mba <- newByteArray len
+      let lim = len `P.div` 2
+      let countWord64 = lim `P.div` 8
+      let word64Ixes = P.fmap (* 8) [0 .. countWord64 - 1]
+      traverse_ (bigGo mba) word64Ixes
+      traverse_ (littleGo mba) [countWord64 * 8 .. lim - 1]
+      frozen <- unsafeFreezeByteArray mba
+      pure . AT frozen 0 $ len
+    bigGo :: MutableByteArray s -> Int -> ST s ()
+    bigGo (MutableByteArray mba#) loIx = do
+      let !(I# loIx#) = loIx + off
+      let loRead = byteSwap64# (indexWord8ArrayAsWord64# ba# loIx#)
+      let !(I# hiIx#) = len - loIx - 8 + off
+      let hiRead = byteSwap64# (indexWord8ArrayAsWord64# ba# hiIx#)
+      let !(I# dstLoIx#) = loIx
+      let !(I# dstHiIx#) = len - loIx - 8
+      primitive_ (writeWord8ArrayAsWord64# mba# dstLoIx# hiRead)
+      primitive_ (writeWord8ArrayAsWord64# mba# dstHiIx# loRead)
+    littleGo :: MutableByteArray s -> Int -> ST s ()
+    littleGo mba loIx = do
+      let loRead = indexByteArray @Word8 ba (loIx + off)
+      let hiIx = len - loIx - 1 + off
+      let hiRead = indexByteArray @Word8 ba hiIx
+      writeByteArray mba loIx hiRead
+      writeByteArray mba (hiIx - off) loRead
+
+{-
     mba <- newByteArray len
     traverse_ (go mba) [off .. off + len - 1]
     frozen <- unsafeFreezeByteArray mba
