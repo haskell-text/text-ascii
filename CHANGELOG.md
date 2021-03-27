@@ -10,6 +10,8 @@
   `decodeBytesAsciiMay`, `encodeAscii`, `toBytes` in `Text.Ascii`.
 * Optimize string matching implementation, update documentation to indicate
   this.
+* Add `copy` function in `Text.Ascii` for manually escaping memory sharing.
+* New benchmarks.
 
 ## 1.0.1 -- 2021-03-02
 

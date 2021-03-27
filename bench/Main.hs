@@ -17,7 +17,7 @@ main = withFile "./bench-data/big.txt" ReadMode go
     go :: Handle -> IO ()
     go h = do
       asText <- TIO.hGetContents h
-      case TA.fromText asText of
+      case TA.decodeAsciiMay asText of
         Nothing -> fail "Sample data is not ASCII"
         Just asAsciiText -> runSherlockTests asText asAsciiText
 
@@ -46,7 +46,7 @@ runSherlockTests asText asAsciiText =
           bench "Replace 1, Text" . nf (T.replace "S" "M") $ asText,
           bench "Replace 1, AsciiText" . nf (TA.replace [TA.ascii| "S" |] [TA.ascii| "M" |]) $ asAsciiText,
           bench "Replace missing, Text" . nf (T.replace "Simping" "Dancing") $ asText,
-          bench "Replace missing, AsciiText" . nf (TA.replace [TA.ascii| "Simping" |] [TA.ascii| "Dancing" |]) $ asAsciiText 
+          bench "Replace missing, AsciiText" . nf (TA.replace [TA.ascii| "Simping" |] [TA.ascii| "Dancing" |]) $ asAsciiText
         ],
       bgroup
         "Breaking"
@@ -81,5 +81,4 @@ runSherlockTests asText asAsciiText =
           bench "Break missing, Text" . nf (T.breakOnAll "Simping") $ asText,
           bench "Break missing, AsciiText" . nf (TA.breakOnAll [TA.ascii| "Simping" |]) $ asAsciiText
         ]
-
     ]

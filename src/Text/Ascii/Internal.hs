@@ -148,6 +148,7 @@ instance Show AsciiText where
       go :: Int -> Char
       go i = chr . fromIntegral . indexByteArray @Word8 ba $ i
 
+-- | @since 1.0.0
 instance Semigroup AsciiText where
   {-# INLINEABLE (<>) #-}
   AT ba off len <> AT ba' off' len' = runST $ do
@@ -253,6 +254,13 @@ instance FoldCase AsciiText where
       go mba i = do
         w8 <- readByteArray @Word8 mba i
         when (65 <= w8 && w8 <= 90) (writeByteArray mba i (w8 + 32))
+
+-- | @since 2.0.0
+instance Arbitrary AsciiText where
+  {-# INLINEABLE arbitrary #-}
+  arbitrary = _
+  {-# INLINEABLE shrink #-}
+  shrink = _
 
 {-
 -- | @since 1.0.1

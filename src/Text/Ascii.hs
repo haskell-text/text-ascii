@@ -3,6 +3,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MagicHash #-}
 {-# LANGUAGE QuasiQuotes #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE Trustworthy #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -130,7 +131,7 @@ module Text.Ascii
     -- * Indexing
     index,
     findIndex,
-    -- count,
+    count,
 
     -- * Zipping
     zip,
@@ -156,6 +157,9 @@ module Text.Ascii
     -- chars,
     -- packedBytes,
     -- bytes,
+
+    -- * Low-level
+    copy,
   )
 where
 
@@ -163,6 +167,15 @@ import Control.Category ((.))
 import Control.Monad (foldM_)
 import Control.Monad.Primitive (primitive_)
 import Control.Monad.ST (ST, runST)
+import Data.Bits
+  ( bit,
+    complement,
+    countTrailingZeros,
+    popCount,
+    shiftR,
+    xor,
+    (.|.),
+  )
 import Data.Bool (Bool (False, True), otherwise, (&&))
 import Data.Char (Char, chr, isAscii, ord)
 import Data.Coerce (coerce)
@@ -188,9 +201,12 @@ import GHC.Exts
   ( Int (I#),
     IsList (Item, fromList, fromListN, toList),
     byteSwap64#,
+    ctz64#,
     indexWord8ArrayAsWord64#,
+    pdep64#,
     writeWord8ArrayAsWord64#,
   )
+import GHC.Word (Word64 (W64#))
 import Text.Ascii.Internal (AsciiChar (AsciiChar), AsciiText (AT))
 import Text.Ascii.QQ (ascii, char)
 import Prelude
@@ -1990,7 +2006,6 @@ findIndex f = F.foldl' go Nothing . P.zip [0 ..] . toList
       Nothing -> if f c then Just i else Nothing
       Just _ -> acc
 
-{-
 -- | @count needle haystack@, given a @needle@ of length \(n\) and a haystack of
 -- length \(h\), counts the number of non-overlapping occurrences of @needle@ in
 -- @haystack@. If @needle@ is empty, the count will be 0.
@@ -2044,13 +2059,12 @@ findIndex f = F.foldl' go Nothing . P.zip [0 ..] . toList
 --
 -- @since 1.0.1
 count :: AsciiText -> AsciiText -> Int
-count = _
-
-count needle@(AsciiText n) haystack@(AsciiText h)
-  | P.min (length needle) (length haystack) == 0 = 0
-  | length needle == 1 = BS.count (BS.head n) h
-  | otherwise = P.length . indices n $ h
--}
+count (AT needleBa needleOff needleLen) (AT haystackBa haystackOff haystackLen)
+  | P.min needleLen haystackLen == 0 = 0
+  | otherwise =
+    P.length
+      . indices needleBa needleOff needleLen haystackBa haystackOff
+      $ haystackLen
 
 -- Zipping
 
@@ -2302,6 +2316,29 @@ bytes :: IxFold Int64 AsciiText Word8
 bytes = castOptic . coerceS . coerceT $ BSO.bytes @ByteString
 -}
 
+-- Low-level
+
+-- | Make a distinct copy of the argument, such that the copy shares no memory
+-- with it. Other than the copying, identical to `P.id`.
+--
+-- This function is useful if you only need a small portion of a much larger
+-- string; this way, you can release all the memory associated with the much
+-- larger string immediately, rather than waiting until the small portion is no
+-- longer needed.
+--
+-- >>> copy [ascii| "I am a catboy." |]
+-- " I am a catboy."
+--
+-- /Complexity:/ \(\Theta(n)\)
+--
+-- @since 2.0.0
+copy :: AsciiText -> AsciiText
+copy (AT ba off len) = runST $ do
+  mba <- newByteArray len
+  copyByteArray mba 0 ba off len
+  frozen <- unsafeFreezeByteArray mba
+  pure . AT frozen 0 $ len
+
 -- Helpers
 
 isSpace :: AsciiChar -> Bool
@@ -2310,28 +2347,60 @@ isSpace (AsciiChar w8)
   | 9 <= w8 && w8 <= 13 = True
   | otherwise = False
 
-{-
-indices :: ByteString -> ByteString -> [Int]
-indices needle haystack = case BS.uncons needle of
-  Nothing -> []
-  Just (h, t) ->
-    let ixes = BS.elemIndices h haystack
-     in case BS.uncons t of
-          Nothing -> ixes
-          Just _ -> go ixes
+indicesWord8 :: ByteArray -> Int -> Int -> Word8 -> [Int]
+indicesWord8 ba@(ByteArray ba#) off len w8 = case len `P.div` 8 of
+  d ->
+    L.concatMap wordStep [off, off + 8 .. off + ((d - 1) * 8)]
+      <> byteStep (off + 8 * d)
   where
+    wordStep :: Int -> [Int]
+    wordStep i@(I# i#) = do
+      let w :: Word64 = W64# (indexWord8ArrayAsWord64# ba# i#)
+      let input :: Word64 = w `xor` broadcast
+      let final :: Word64 = complement ((input + loOrderMask) .|. loOrderMask)
+      case popCount final of
+        0 -> []
+        1 -> [i + (countTrailingZeros final `P.div` 8)]
+        2 -> P.fmap ((i +) . select final) [0 .. 1]
+        3 -> P.fmap ((i +) . select final) [0 .. 2]
+        4 -> P.fmap ((i +) . select final) [0 .. 3]
+        5 -> P.fmap ((i +) . select final) [0 .. 4]
+        6 -> P.fmap ((i +) . select final) [0 .. 5]
+        7 -> P.fmap ((i +) . select final) [0 .. 6]
+        _ -> [i .. i + 7]
+    byteStep :: Int -> [Int]
+    byteStep i
+      | i == off + len = []
+      | indexByteArray ba i == w8 = i : byteStep (i + 1)
+      | otherwise = byteStep (i + 1)
+    broadcast :: Word64
+    broadcast = P.fromIntegral w8 * (0x0101010101010101 :: Word64)
+    loOrderMask :: Word64
+    loOrderMask = 0x7F7F7F7F7F7F7F7F
+
+select :: Word64 -> Int -> Int
+select (W64# mask) i =
+  let !(W64# src) = bit i
+      res = W64# (ctz64# (pdep64# src mask))
+   in P.fromIntegral (res `shiftR` 3)
+
+indices :: ByteArray -> Int -> Int -> ByteArray -> Int -> Int -> [Int]
+indices needleBa needleOff needleLen haystackBa haystackOff haystackLen
+  | needleLen == 0 = []
+  | needleLen == 1 = firstPosMatches
+  | otherwise = go firstPosMatches
+  where
+    firstPosMatches :: [Int]
+    firstPosMatches =
+      indicesWord8 haystackBa haystackOff haystackLen
+        . indexByteArray needleBa
+        $ needleOff
     go :: [Int] -> [Int]
     go = \case
       [] -> []
       (i : is) ->
-        let fragment = slice i
-         in if fragment == needle
-              then i : go (skip i is)
-              else go is
-    slice :: Int -> ByteString
-    slice i = BS.take needleLen . BS.drop i $ haystack
+        case compareByteArrays haystackBa i needleBa needleOff needleLen of
+          P.EQ -> i : go (skip i is)
+          _ -> go is
     skip :: Int -> [Int] -> [Int]
     skip i = P.dropWhile (\j -> j - i < needleLen)
-    needleLen :: Int
-    needleLen = BS.length needle
--}
