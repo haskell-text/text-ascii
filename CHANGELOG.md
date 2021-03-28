@@ -3,7 +3,7 @@
 ## 2.0.0 -- 
 
 * New back-end based on `ByteArray#`.
-* No longer depend on `text`, `bytestring`.
+* No longer depend on `text`, `bytestring`, `optics-extras`.
 * Implement `decodeAscii`, `decodeBytesAscii` in `Unsafe`.
 * Remove `fromText`, `fromByteString`, `toText`, `toByteString`.
 * Implement `decodeAscii`, `decodeAsciiMay`, `decodeBytesAscii`,
@@ -11,7 +11,13 @@
 * Optimize string matching implementation, update documentation to indicate
   this.
 * Add `copy` function in `Text.Ascii` for manually escaping memory sharing.
+* Add `Arbitrary` instances for `AsciiChar`, `AsciiText`, `Unsafe`.
+* Add `Hashable` instance for `AsciiText`.
+* Add `Prim`, `Uniform`, `UniformRange` instances for `AsciiChar`, `Unsafe`.
 * New benchmarks.
+* Add new optics `_AsAscii`, `_AsBytesAscii`, `_PackedAscii` in `Text.Ascii`.
+  These replace all old optics in that module, except `bytes` and `chars`.
+* `chars` and `bytes` now have `Int` indices.
 
 ## 1.0.1 -- 2021-03-02
 

@@ -1,10 +1,13 @@
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE RoleAnnotations #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE UnboxedTuples #-}
 
 -- |
 -- Module: Text.Ascii.Unsafe
@@ -62,9 +65,12 @@ import Data.Kind (Type)
 import qualified Data.List as L
 import Data.Maybe (fromMaybe)
 import Data.Primitive.ByteArray (indexByteArray)
+import Data.Primitive.Types (Prim)
 import Data.Word (Word8)
 import GHC.Exts (IsList (Item, fromList, toList))
 import GHC.Read (expectP, lexP, parens, readPrec)
+import System.Random.Stateful (Uniform (uniformM), UniformRange (uniformRM))
+import Test.QuickCheck.Arbitrary (Arbitrary)
 import Text.Ascii.Internal (AsciiChar (AsciiChar), AsciiText (AT))
 import Text.Megaparsec.Stream (Stream, TraversableStream, VisualStream)
 import Text.ParserCombinators.ReadPrec (ReadPrec)
@@ -119,7 +125,11 @@ newtype Unsafe (a :: Type) = Unsafe {safe :: a}
       -- | @since 1.0.1
       TraversableStream,
       -- | @since 1.0.1
-      Show
+      Show,
+      -- | @since 2.0.0
+      Arbitrary,
+      -- | @since 2.0.0
+      Prim
     )
     via a
   deriving stock
@@ -183,6 +193,16 @@ instance Enum (Unsafe AsciiChar) where
   {-# INLINEABLE enumFromThenTo #-}
   enumFromThenTo (Unsafe (AsciiChar start)) (Unsafe (AsciiChar step)) (Unsafe (AsciiChar end)) =
     coerce [w | w <- [start, step .. end], w <= 127]
+
+-- | @since 2.0.0
+instance (Uniform a) => Uniform (Unsafe a) where
+  {-# INLINEABLE uniformM #-}
+  uniformM gen = Unsafe <$> uniformM gen
+
+-- | @since 2.0.0
+instance (UniformRange a) => UniformRange (Unsafe a) where
+  {-# INLINEABLE uniformRM #-}
+  uniformRM (Unsafe lo, Unsafe hi) gen = Unsafe <$> uniformRM (lo, hi) gen
 
 -- | @since 1.0.1
 instance Read (Unsafe AsciiText) where

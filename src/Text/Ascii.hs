@@ -124,7 +124,7 @@ module Text.Ascii
 
     -- * Searching
     filter,
-    -- breakOnAll,
+    breakOnAll,
     find,
     partition,
 
@@ -148,15 +148,15 @@ module Text.Ascii
 
     -- * Conversion
     toBytes,
+    unpackAscii,
+    packAscii,
 
     -- * Optics
-
-    -- textWise,
-    -- byteStringWise,
-    -- packedChars,
-    -- chars,
-    -- packedBytes,
-    -- bytes,
+    _AsAscii,
+    _AsBytesAscii,
+    _PackedAscii,
+    chars,
+    bytes,
 
     -- * Low-level
     copy,
@@ -207,6 +207,11 @@ import GHC.Exts
     writeWord8ArrayAsWord64#,
   )
 import GHC.Word (Word64 (W64#))
+import Optics.Indexed.Core (itraverse_)
+import Optics.Iso (Iso', iso)
+import Optics.IxFold (IxFold, ifoldVL)
+import Optics.IxTraversal (IxTraversal', itraversalVL, itraverse)
+import Optics.Prism (Prism', prism')
 import Text.Ascii.Internal (AsciiChar (AsciiChar), AsciiText (AT))
 import Text.Ascii.QQ (ascii, char)
 import Prelude
@@ -1814,10 +1819,10 @@ stripInfix needle@(AsciiText n) haystack@(AsciiText h)
 --
 -- @since 1.0.1
 commonPrefixes :: AsciiText -> AsciiText -> Maybe (AsciiText, AsciiText, AsciiText)
-commonPrefixes = _
--}
+commonPrefixes (AT ba off len) (AT ba' off' len')
+  | P.min len len' == 0 = Nothing
+  | otherwise = _
 
-{-
 commonPrefixes (AsciiText t1) (AsciiText t2) =
   go2 <$> F.foldl' go Nothing [0 .. P.min (BS.length t1) (BS.length t2) - 1]
   where
@@ -1849,7 +1854,6 @@ commonPrefixes (AsciiText t1) (AsciiText t2) =
 filter :: (AsciiChar -> Bool) -> AsciiText -> AsciiText
 filter f = fromList . L.filter f . toList
 
-{-
 -- | @breakOnAll needle haystack@, given a @needle@ of length \(n\) and a
 -- @haystack@ of length \(h\), finds all non-overlapping instances of @needle@
 -- in @haystack@. Each result consists of the following elements:
@@ -1910,6 +1914,15 @@ filter f = fromList . L.filter f . toList
 --
 -- @since 1.0.1
 breakOnAll :: AsciiText -> AsciiText -> [(AsciiText, AsciiText)]
+breakOnAll (AT needleBa needleOff needleLen) haystack@(AT haystackBa haystackOff haystackLen)
+  | needleLen == 0 = [(haystack, empty)]
+  | haystackLen == 0 = []
+  | otherwise =
+    P.fmap (`splitAt` haystack)
+      . indices needleBa needleOff needleLen haystackBa haystackOff
+      $ haystackLen
+
+{-
 breakOnAll = _
 
 breakOnAll needle@(AsciiText n) haystack@(AsciiText h)
@@ -2213,56 +2226,65 @@ encodeAscii =
 toBytes :: (IsList s, Item s ~ Word8) => AsciiText -> s
 toBytes = fromList . P.fmap coerce . toList
 
+-- TODO: Doctests for unpackAscii, packAscii
+
+-- | \'Unpack\' ASCII text into another linear structure.
+--
+-- /Complexity:/ \(\Theta(n)\)
+--
+-- @since 2.0.0
+unpackAscii :: (IsList s, Item s ~ AsciiChar) => AsciiText -> s
+unpackAscii at = fromListN (length at) . toList $ at
+
+-- | \'Pack\' ASCII text data from a linear structure to an 'AsciiText'.
+--
+-- /Complexity:/ \(\Theta(n)\)
+--
+-- @since 2.0.0
+packAscii :: (IsList s, Item s ~ AsciiChar) => s -> AsciiText
+packAscii = fromList . toList
+
 -- Optics
 
--- | A convenient demonstration of the relationship between 'toText' and
--- 'fromText'.
+-- | A demonstration of the relationship between 'decodeAsciiMay' and
+-- 'encodeAscii'.
 --
--- >>> preview textWise "catboy goes nyan"
+-- >>> preview _AsAscii ("catboy goes nyan" :: String)
 -- Just "catboy goes nyan"
--- >>> preview textWise "😺😺😺😺😺"
+-- >>> preview _AsAscii "😺😺😺😺😺"
 -- Nothing
--- >>> review textWise [ascii| "catboys are amazing" |]
+-- >>> review _AsAscii [ascii| "catboys are amazing" |] :: String
 -- "catboys are amazing"
 --
--- @since 1.0.0
+-- @since 2.0.0
+_AsAscii :: (IsList s, Item s ~ Char) => Prism' s AsciiText
+_AsAscii = prism' encodeAscii decodeAsciiMay
 
-{-
-textWise :: Prism' Text AsciiText
-textWise = prism' toText fromText
--}
-
--- | A convenient demonstration of the relationship between 'toByteString' and
--- 'fromByteString'.
+-- | A demonstration of the relationship between 'decodeBytesAsciiMay' and
+-- 'toBytes'.
 --
--- >>> preview byteStringWise "catboy goes nyan"
--- Just "catboy goes nyan"
--- >>> preview byteStringWise . BS.pack $ [0xff, 0xff]
+-- >>> preview _AsBytesAscii ([0x6e, 0x79, 0x61, 0x6e] :: [Word8])
+-- Just "nyan"
+-- >>> preview _AsBytesAscii ([0xff, 0xff] :: [Word8])
 -- Nothing
--- >>> review byteStringWise [ascii| "I love catboys" |]
--- "I love catboys"
+-- >>> review _AsBytesAscii [ascii| "nyan" |]
+-- []
 --
--- @since 1.0.0
+-- @since 2.0.0
+_AsBytesAscii :: (IsList s, Item s ~ Word8) => Prism' s AsciiText
+_AsBytesAscii = prism' toBytes decodeBytesAsciiMay
 
-{-
-byteStringWise :: Prism' ByteString AsciiText
-byteStringWise = prism' toByteString fromByteString
--}
-
--- | Pack (or unpack) a list of ASCII characters into a text.
+-- | Pack (or unpack) a linear structure of ASCII characters into an
+-- 'AsciiText'.
 --
--- >>> view packedChars [[char| 'n' |], [char| 'y' |], [char| 'a' |], [char| 'n' |]]
+-- >>> view _PackedAscii [[char| 'n' |], [char| 'y' |], [char| 'a' |], [char| 'n' |]]
 -- "nyan"
--- >>> review packedChars [ascii| "nyan" |]
+-- >>> review _PackedAscii [ascii| "nyan" |]
 -- ['0x6e','0x79','0x61','0x6e']
 --
--- @since 1.0.1
-
-{-
-packedChars :: Iso' [AsciiChar] AsciiText
-packedChars =
-  coerceS . coerceT . coerceA . coerceB $ BSO.packedBytes @ByteString
--}
+-- @since 2.0.0
+_PackedAscii :: (IsList s, Item s ~ AsciiChar) => Iso' s AsciiText
+_PackedAscii = iso packAscii unpackAscii
 
 -- | Traverse the individual ASCII characters in a text.
 --
@@ -2273,34 +2295,9 @@ packedChars =
 -- >>> iover chars (\i x -> bool x [char| 'w' |] . even $ i) [ascii| "I am a catboy" |]
 -- "w wmwawcwtwow"
 --
--- @since 1.0.1
-
-{-
-chars :: IxTraversal' Int64 AsciiText AsciiChar
-chars = coerceS . coerceT . coerceA . coerceB $ BSO.bytes @ByteString
--}
-
--- | Pack (or unpack) a list of bytes into a text. This isn't as capable as
--- 'packedChars', as that would allow construction of invalid texts.
---
--- >>> preview packedBytes [0x6e, 0x79, 0x61, 0x6e]
--- Just "nyan"
--- >>> preview packedBytes [0xff, 0xfe]
--- Nothing
--- >>> review packedBytes [ascii| "nyan" |]
--- [110,121,97,110]
---
--- @since 1.0.1
-
-{-
-packedBytes :: Prism' [Word8] AsciiText
-packedBytes = prism' (review go) (P.fmap (view go2) . P.traverse asciify)
-  where
-    go :: Review [Word8] AsciiText
-    go = castOptic . coerceA . coerceB $ BSO.packedBytes @ByteString
-    go2 :: Getter [Word8] AsciiText
-    go2 = castOptic . coerceA . coerceB $ BSO.packedBytes @ByteString
--}
+-- @since 2.0.0
+chars :: IxTraversal' Int AsciiText AsciiChar
+chars = itraversalVL (\f at -> P.fmap fromList . itraverse f . toList $ at)
 
 -- | Access the individual bytes in a text. This isn't as capable as 'chars', as
 -- that would allow modifications of the bytes in ways that aren't valid as
@@ -2309,12 +2306,9 @@ packedBytes = prism' (review go) (P.fmap (view go2) . P.traverse asciify)
 -- >>> itoListOf bytes [ascii| "I am a catboy" |]
 -- [(0,73),(1,32),(2,97),(3,109),(4,32),(5,97),(6,32),(7,99),(8,97),(9,116),(10,98),(11,111),(12,121)]
 --
--- @since 1.0.1
-
-{-
-bytes :: IxFold Int64 AsciiText Word8
-bytes = castOptic . coerceS . coerceT $ BSO.bytes @ByteString
--}
+-- @since 2.0.0
+bytes :: IxFold Int AsciiText Word8
+bytes = ifoldVL (\f at -> itraverse_ f . coerce @[AsciiChar] @[Word8] . toList $ at)
 
 -- Low-level
 

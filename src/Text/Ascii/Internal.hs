@@ -1,10 +1,13 @@
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE PatternSynonyms #-}
+{-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE Trustworthy #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE UnboxedTuples #-}
 {-# LANGUAGE ViewPatterns #-}
 
 -- |
@@ -27,7 +30,7 @@ import Data.CaseInsensitive (FoldCase (foldCase))
 import Data.Char (chr, isAscii)
 import Data.Coerce (coerce)
 import Data.Foldable (foldl', traverse_)
-import Data.Hashable (Hashable)
+import Data.Hashable (Hashable (hashWithSalt))
 import Data.List.NonEmpty (NonEmpty ((:|)))
 import Data.Primitive.ByteArray
   ( ByteArray,
@@ -41,12 +44,20 @@ import Data.Primitive.ByteArray
     unsafeFreezeByteArray,
     writeByteArray,
   )
+import Data.Primitive.Types (Prim)
 import Data.Semigroup (sconcat, stimes)
 import Data.Word (Word8)
 import GHC.Exts (IsList (Item, fromList, fromListN, toList))
 import Numeric (showHex)
 import Optics.AffineTraversal (An_AffineTraversal, atraversal)
 import Optics.At.Core (Index, IxValue, Ixed (IxKind, ix))
+import System.Random.Stateful (Uniform (uniformM), UniformRange (uniformRM))
+import Test.QuickCheck.Arbitrary
+  ( Arbitrary (arbitrary, shrink),
+    liftArbitrary,
+    liftShrink,
+  )
+import Test.QuickCheck.Gen (chooseBoundedIntegral)
 import Type.Reflection (Typeable)
 
 -- | Represents valid ASCII characters, which are bytes from @0x00@ to @0x7f@.
@@ -61,7 +72,9 @@ newtype AsciiChar = AsciiChar {toByte :: Word8}
       -- | @since 1.0.0
       Hashable,
       -- | @since 1.0.0
-      NFData
+      NFData,
+      -- | @since 2.0.0
+      Prim
     )
     via Word8
   deriving stock
@@ -87,6 +100,22 @@ instance FoldCase AsciiChar where
   foldCase ac@(AsciiChar w8)
     | 65 <= w8 && w8 <= 90 = AsciiChar (w8 + 32)
     | otherwise = ac
+
+-- | @since 2.0.0
+instance Arbitrary AsciiChar where
+  {-# INLINEABLE arbitrary #-}
+  arbitrary = AsciiChar <$> chooseBoundedIntegral (0, 127)
+
+-- | @since 2.0.0
+instance Uniform AsciiChar where
+  {-# INLINEABLE uniformM #-}
+  uniformM gen = AsciiChar <$> uniformRM (0, 127) gen
+
+-- | @since 2.0.0
+instance UniformRange AsciiChar where
+  {-# INLINEABLE uniformRM #-}
+  uniformRM (AsciiChar w8, AsciiChar w8') gen =
+    AsciiChar <$> uniformRM (w8, w8') gen
 
 -- | View an 'AsciiChar' as its underlying byte. You can pattern match on this,
 -- but since there are more bytes than valid ASCII characters, you cannot use
@@ -258,9 +287,14 @@ instance FoldCase AsciiText where
 -- | @since 2.0.0
 instance Arbitrary AsciiText where
   {-# INLINEABLE arbitrary #-}
-  arbitrary = _
+  arbitrary = fromList <$> liftArbitrary arbitrary
   {-# INLINEABLE shrink #-}
-  shrink = _
+  shrink = fmap fromList . liftShrink shrink . toList
+
+-- | @since 2.0.0
+instance Hashable AsciiText where
+  {-# INLINEABLE hashWithSalt #-}
+  hashWithSalt salt = hashWithSalt salt . toList
 
 {-
 -- | @since 1.0.1
