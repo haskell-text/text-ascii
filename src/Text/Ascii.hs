@@ -46,7 +46,7 @@ module Text.Ascii
     -- intersperse,
     -- transpose,
     reverse,
-    -- replace,
+    replace,
 
     -- ** Justification
     justifyLeft,
@@ -94,8 +94,8 @@ module Text.Ascii
     stripStart,
     -- stripEnd,
     splitAt,
-    -- breakOn,
-    -- breakOnEnd,
+    breakOn,
+    breakOnEnd,
     -- break,
     -- span,
     -- group,
@@ -104,8 +104,7 @@ module Text.Ascii
     tails,
 
     -- ** Breaking into many substrings
-
-    -- splitOn,
+    splitOn,
     -- split,
     chunksOf,
 
@@ -176,7 +175,7 @@ import Data.Bits
     xor,
     (.|.),
   )
-import Data.Bool (Bool (False, True), otherwise, (&&))
+import Data.Bool (Bool (False, True), otherwise, (&&), (||))
 import Data.Char (Char, chr, isAscii, ord)
 import Data.Coerce (coerce)
 import Data.Either (Either (Left))
@@ -488,14 +487,6 @@ reverse at@(AT ba@(ByteArray ba#) off len) = case len of
       writeByteArray mba loIx hiRead
       writeByteArray mba (hiIx - off) loRead
 
-{-
-    mba <- newByteArray len
-    traverse_ (go mba) [off .. off + len - 1]
-    frozen <- unsafeFreezeByteArray mba
-    pure . AT frozen 0 $ len
--}
-
-{-
 -- | @replace needle replacement haystack@, given a @needle@ of length \(n\) and
 -- a haystack of length \(h\), replaces each non-overlapping occurrence of
 -- @needle@ in @haystack@ with @replacement@. If the @needle@ is empty, no
@@ -564,7 +555,6 @@ replace needle replacement haystack
   | length needle == 0 || length haystack == 0 = haystack
   | length needle > length haystack = haystack
   | otherwise = intercalate replacement . splitOn needle $ haystack
--}
 
 -- | @justifyLeft n c t@ produces a result of length \(\max \{ {\tt n }, {\tt length} \; {\tt t} \}\),
 -- consisting of a copy of @t@ followed by (zero or more) copies
@@ -1077,7 +1067,6 @@ splitAt i at@(AT ba off len)
   | i < len = (AT ba off i, AT ba (off + i) (len - i))
   | otherwise = (at, mempty)
 
-{-
 -- | @breakOn needle haystack@, given a @needle@ of length \(n\) and a
 -- @haystack@ of length \(h\), attempts to find the first instance of @needle@
 -- in @haystack@. If successful, return a tuple consisting of:
@@ -1139,18 +1128,12 @@ splitAt i at@(AT ba off len)
 --
 -- @since 1.0.1
 breakOn :: AsciiText -> AsciiText -> (AsciiText, AsciiText)
-breakOn = _
--}
-
-{-
-breakOn needle@(AsciiText n) haystack@(AsciiText h)
+breakOn needle@(AT nba noff nlen) haystack@(AT hba hoff hlen)
   | length needle == 0 = (empty, haystack)
-  | otherwise = case indices n h of
+  | otherwise = case indices nba noff nlen hba hoff hlen of
     [] -> (haystack, empty)
     ix : _ -> splitAt ix haystack
--}
 
-{-
 -- | @breakOnEnd needle haystack@, given a @needle@ of length \(n\) and a
 -- @haystack@ of length \(h\), attempts to find the last instance of @needle@ in
 -- @haystack@. If successful, return a tuple consisting of:
@@ -1212,22 +1195,17 @@ breakOn needle@(AsciiText n) haystack@(AsciiText h)
 --
 -- @since 1.0.1
 breakOnEnd :: AsciiText -> AsciiText -> (AsciiText, AsciiText)
-breakOnEnd = _
--}
-
-{-
-breakOnEnd needle@(AsciiText n) haystack@(AsciiText h)
+breakOnEnd needle@(AT nba noff nlen) haystack@(AT hba hoff hlen)
   | length needle == 0 = (haystack, empty)
-  | otherwise = case go . indices n $ h of
+  | otherwise = case go . indices nba noff nlen hba hoff $ hlen of
     Nothing -> (empty, haystack)
-    Just ix -> splitAt (ix + length needle) haystack
+    Just ix -> splitAt (ix + nlen) haystack
   where
     go :: [Int] -> Maybe Int
     go = \case
       [] -> Nothing
       [i] -> Just i
       (_ : is) -> go is
--}
 
 {-
 -- | @break p t@ is equivalent to @('takeWhile' ('not' p) t, 'dropWhile' ('not'
@@ -1336,7 +1314,6 @@ tails (AT ba off len) = P.zipWith (AT ba) [off .. off + len - 1] [len, len - 1 .
 
 -- Breaking into many substrings
 
-{-
 -- | @splitOn needle haystack@, given a @needle@ of length \(n\) and a haystack
 -- of length \(h\), breaks @haystack@ into pieces, separated by @needle@. Any
 -- occurrences of @needle@ in @haystack@ are consumed.
@@ -1390,25 +1367,18 @@ tails (AT ba off len) = P.zipWith (AT ba) [off .. off + len - 1] [len, len - 1 .
 --
 -- @since 1.0.1
 splitOn :: AsciiText -> AsciiText -> [AsciiText]
-splitOn = _
--}
-{-
-splitOn needle@(AsciiText n) haystack@(AsciiText h)
-  | needleLen == 0 = [haystack]
+splitOn needle@(AT nba noff nlen) haystack@(AT hba hoff hlen)
+  | length needle == 0 = [haystack]
   | length haystack == 0 = [empty]
-  | needleLen == 1 = coerce . BS.split (BS.head n) $ h
-  | otherwise = go 0 (indices n h)
+  | otherwise = go 0 . indices nba noff nlen hba hoff $ hlen
   where
-    needleLen :: Int
-    needleLen = length needle
     go :: Int -> [Int] -> [AsciiText]
     go pos = \case
       [] -> [drop pos haystack]
       (ix : ixes) ->
         let chunkLen = ix - pos
             segment = take chunkLen . drop pos $ haystack
-         in segment : go (pos + chunkLen + needleLen) ixes
--}
+         in segment : go (pos + chunkLen + nlen) ixes
 
 {-
 -- | @split p t@ separates @t@ into components delimited by separators, for
