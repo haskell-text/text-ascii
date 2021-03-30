@@ -219,6 +219,7 @@ import Prelude
     (*),
     (+),
     (-),
+    (/=),
     (<),
     (<=),
     (<>),
@@ -2311,60 +2312,60 @@ isSpace (AsciiChar w8)
   | 9 <= w8 && w8 <= 13 = True
   | otherwise = False
 
-indicesWord8 :: ByteArray -> Int -> Int -> Word8 -> [Int]
-indicesWord8 ba@(ByteArray ba#) off len w8 = case len `P.div` 8 of
-  d ->
-    L.concatMap wordStep [off, off + 8 .. off + ((d - 1) * 8)]
-      <> byteStep (off + 8 * d)
+indices :: ByteArray -> Int -> Int -> ByteArray -> Int -> Int -> [Int]
+indices nba noff nlen hba@(ByteArray hba#) hoff hlen
+  | nlen == 0 = []
+  | nlen > hlen = []
+  | otherwise =
+    L.concatMap wordStep [hoff, hoff + 8 .. hoff + hlen - nlen + 1]
+      <> byteStep (hoff + hlen - nlen + 1) (hoff + 8 * ((hlen - nlen) `P.quot` 8))
   where
+    blockFirst :: Word64
+    blockFirst = broadcast first
+    first :: Word8
+    first = indexByteArray nba noff
+    blockLast :: Word64
+    blockLast = broadcast . indexByteArray nba $ noff + nlen - 1
     wordStep :: Int -> [Int]
-    wordStep i@(I# i#) = do
-      let w :: Word64 = W64# (indexWord8ArrayAsWord64# ba# i#)
-      let input :: Word64 = w `xor` broadcast
+    wordStep wordI@(I# wordI#) = do
+      let w :: Word64 = W64# (indexWord8ArrayAsWord64# hba# wordI#)
+      let !(I# jumpI#) = wordI + nlen - 1
+      let w' :: Word64 = W64# (indexWord8ArrayAsWord64# hba# jumpI#)
+      let input :: Word64 = (w `xor` blockFirst) .|. (w' `xor` blockLast)
       let final :: Word64 = complement ((input + loOrderMask) .|. loOrderMask)
       case popCount final of
         0 -> []
-        1 -> [i + (countTrailingZeros final `P.div` 8)]
-        2 -> P.fmap ((i +) . select final) [0 .. 1]
-        3 -> P.fmap ((i +) . select final) [0 .. 2]
-        4 -> P.fmap ((i +) . select final) [0 .. 3]
-        5 -> P.fmap ((i +) . select final) [0 .. 4]
-        6 -> P.fmap ((i +) . select final) [0 .. 5]
-        7 -> P.fmap ((i +) . select final) [0 .. 6]
-        _ -> [i .. i + 7]
-    byteStep :: Int -> [Int]
-    byteStep i
-      | i == off + len = []
-      | indexByteArray ba i == w8 = i : byteStep (i + 1)
-      | otherwise = byteStep (i + 1)
-    broadcast :: Word64
-    broadcast = P.fromIntegral w8 * (0x0101010101010101 :: Word64)
+        1 -> do
+          let off = countTrailingZeros final `P.div` 8
+          case compareByteArrays hba (wordI + off) nba noff nlen of
+            P.EQ -> [wordI + off]
+            _ -> []
+        pop -> do
+          let selected = P.fmap (select final) [0 .. pop - 1]
+          selectGo wordI final selected
+    selectGo :: Int -> Word64 -> [Int] -> [Int]
+    selectGo wordI final = \case
+      [] -> []
+      (sI : sIs) -> case compareByteArrays hba (wordI + sI) nba noff nlen of
+        P.EQ -> wordI + sI : (selectGo wordI final . skip sI $ sIs)
+        _ -> selectGo wordI final sIs
+    byteStep :: Int -> Int -> [Int]
+    byteStep lim byteI
+      | byteI > lim = []
+      | indexByteArray hba byteI /= first = byteStep lim (byteI + 1)
+      | otherwise = case compareByteArrays hba byteI nba noff nlen of
+        P.EQ -> byteI : byteStep lim (byteI + nlen)
+        _ -> byteStep lim (byteI + 1)
     loOrderMask :: Word64
     loOrderMask = 0x7F7F7F7F7F7F7F7F
+    skip :: Int -> [Int] -> [Int]
+    skip i = P.dropWhile (\j -> j - i < nlen)
+
+broadcast :: Word8 -> Word64
+broadcast w8 = P.fromIntegral w8 * (0x0101010101010101 :: Word64)
 
 select :: Word64 -> Int -> Int
 select (W64# mask) i =
   let !(W64# src) = bit i
       res = W64# (ctz64# (pdep64# src mask))
    in P.fromIntegral (res `shiftR` 3)
-
-indices :: ByteArray -> Int -> Int -> ByteArray -> Int -> Int -> [Int]
-indices needleBa needleOff needleLen haystackBa haystackOff haystackLen
-  | needleLen == 0 = []
-  | needleLen == 1 = firstPosMatches
-  | otherwise = go firstPosMatches
-  where
-    firstPosMatches :: [Int]
-    firstPosMatches =
-      indicesWord8 haystackBa haystackOff haystackLen
-        . indexByteArray needleBa
-        $ needleOff
-    go :: [Int] -> [Int]
-    go = \case
-      [] -> []
-      (i : is) ->
-        case compareByteArrays haystackBa i needleBa needleOff needleLen of
-          P.EQ -> i : go (skip i is)
-          _ -> go is
-    skip :: Int -> [Int] -> [Int]
-    skip i = P.dropWhile (\j -> j - i < needleLen)
