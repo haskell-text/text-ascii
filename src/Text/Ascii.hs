@@ -43,8 +43,8 @@ module Text.Ascii
     -- * Transformations
     map,
     intercalate,
-    -- intersperse,
-    -- transpose,
+    intersperse,
+    transpose,
     reverse,
     replace,
 
@@ -76,7 +76,7 @@ module Text.Ascii
     -- ** Generation and unfolding
     replicate,
     unfoldr,
-    -- unfoldrN,
+    unfoldrN,
 
     -- * Substrings
 
@@ -86,39 +86,38 @@ module Text.Ascii
     drop,
     dropEnd,
     takeWhile,
-    -- takeWhileEnd,
+    takeWhileEnd,
     dropWhile,
-    -- dropWhileEnd,
-    -- dropAround,
-    -- strip,
+    dropWhileEnd,
+    dropAround,
+    strip,
     stripStart,
-    -- stripEnd,
+    stripEnd,
     splitAt,
     breakOn,
     breakOnEnd,
-    -- break,
-    -- span,
-    -- group,
-    -- groupBy,
+    break,
+    span,
+    group,
+    groupBy,
     inits,
     tails,
 
     -- ** Breaking into many substrings
     splitOn,
-    -- split,
+    split,
     chunksOf,
 
     -- ** Breaking into lines and words
-
-    -- lines,
+    lines,
     unlines,
-    -- words,
+    words,
     unwords,
 
     -- * View patterns
     stripPrefix,
-    -- stripSuffix,
-    -- stripInfix,
+    stripSuffix,
+    stripInfix,
     -- commonPrefixes,
 
     -- * Searching
@@ -163,9 +162,10 @@ module Text.Ascii
 where
 
 import Control.Category ((.))
-import Control.Monad (foldM_)
+import Control.Monad (foldM, foldM_, when)
 import Control.Monad.Primitive (primitive_)
 import Control.Monad.ST (ST, runST)
+import Data.Bifunctor (bimap)
 import Data.Bits
   ( bit,
     complement,
@@ -181,6 +181,7 @@ import Data.Coerce (coerce)
 import Data.Either (Either (Left))
 import Data.Foldable (Foldable (foldMap), traverse_)
 import qualified Data.Foldable as F
+import Data.Kind (Type)
 import qualified Data.List as L
 import Data.Maybe (Maybe (Just, Nothing))
 import Data.Monoid (mempty)
@@ -191,6 +192,7 @@ import Data.Primitive.ByteArray
     copyByteArray,
     indexByteArray,
     newByteArray,
+    shrinkMutableByteArray,
     unsafeFreezeByteArray,
     writeByteArray,
   )
@@ -402,7 +404,6 @@ intercalate (AT ba off len) = \case
       copyByteArray mba (pos + len) ba' off' len'
       pure (pos + len + len')
 
-{-
 -- | Takes a character, and places it between the characters of a text.
 --
 -- >>> intersperse [char| '~' |] empty
@@ -419,7 +420,19 @@ intersperse :: AsciiChar -> AsciiText -> AsciiText
 intersperse (AsciiChar w8) at@(AT ba off len) = case len of
   0 -> at
   1 -> at
-  _ -> _
+  _ -> runST $ do
+    let newLen = len * 2 - 1
+    mba <- newByteArray newLen
+    writeByteArray mba 0 . indexByteArray @Word8 ba $ off
+    traverse_ (go mba) [1, 3 .. newLen - 1]
+    frozen <- unsafeFreezeByteArray mba
+    pure . AT frozen 0 $ newLen
+  where
+    go :: MutableByteArray s -> Int -> ST s ()
+    go mba i = do
+      writeByteArray mba i w8
+      let oldI = (i + 1) `P.quot` 2
+      writeByteArray mba (i + 1) . indexByteArray @Word8 ba $ oldI
 
 -- | Transpose the rows and columns of the argument. This uses
 -- 'Data.List.transpose' internally, and thus, isn't very efficient.
@@ -439,8 +452,7 @@ intersperse (AsciiChar w8) at@(AT ba off len) = case len of
 --
 -- @since 1.0.0
 transpose :: [AsciiText] -> [AsciiText]
-transpose = _
--}
+transpose = P.fmap fromList . L.transpose . P.fmap toList
 
 -- | Reverse the text.
 --
@@ -792,7 +804,6 @@ replicate n t
 unfoldr :: (a -> Maybe (AsciiChar, a)) -> a -> AsciiText
 unfoldr f = fromList . L.unfoldr f
 
-{-
 -- | Similar to 'unfoldr', but also takes a maximum length parameter. The second
 -- element of the result tuple will be 'Nothing' if we finished with the
 -- function argument returning 'Nothing', and 'Just' the final seed value if we
@@ -801,10 +812,29 @@ unfoldr f = fromList . L.unfoldr f
 -- /Complexity:/ \(\Theta(n)\)
 --
 -- @since 1.0.0
-{-# INLINE unfoldrN #-}
-unfoldrN :: Int -> (a -> Maybe (AsciiChar, a)) -> a -> (AsciiText, Maybe a)
-unfoldrN n f = _
--}
+unfoldrN ::
+  forall (a :: Type).
+  Int ->
+  (a -> Maybe (AsciiChar, a)) ->
+  a ->
+  (AsciiText, Maybe a)
+unfoldrN n f x
+  | n <= 0 = (empty, Just x)
+  | otherwise = runST $ do
+    mba <- newByteArray n
+    (resultLen, acc) <- foldM (go mba) (0, Just x) [0 .. n - 1]
+    when (resultLen < n) (shrinkMutableByteArray mba resultLen)
+    frozen <- unsafeFreezeByteArray mba
+    pure (AT frozen 0 resultLen, acc)
+  where
+    go :: MutableByteArray s -> (Int, Maybe a) -> Int -> ST s (Int, Maybe a)
+    go mba acc@(_, acc') i = case acc' of
+      Nothing -> pure acc
+      Just val -> case f val of
+        Nothing -> pure (i, Nothing)
+        Just (AsciiChar c, val') -> do
+          writeByteArray mba i c
+          pure (i + 1, Just val')
 
 -- | @take n t@ returns the prefix of @t@ with length
 -- \(\min \{ \max \{ 0, {\tt n}\}, {\tt length} \; {\tt t} \}\).
@@ -898,7 +928,6 @@ dropEnd n t = take (length t - n) t
 takeWhile :: (AsciiChar -> Bool) -> AsciiText -> AsciiText
 takeWhile f = fromList . L.takeWhile f . toList
 
-{-
 -- | @takeWhileEnd p t@ returns the longest suffix of @t@ of characters that
 -- satisfy @p@. Equivalent to @'reverse' . 'takeWhile' p . 'reverse'@.
 --
@@ -910,10 +939,8 @@ takeWhile f = fromList . L.takeWhile f . toList
 -- /Complexity:/ \(\Theta(n)\)
 --
 -- @since 1.0.0
-{-# INLINE takeWhileEnd #-}
 takeWhileEnd :: (AsciiChar -> Bool) -> AsciiText -> AsciiText
-takeWhileEnd f = _
--}
+takeWhileEnd f = fromList . L.reverse . L.takeWhile f . L.reverse . toList
 
 -- | @dropWhile p t@ returns the suffix remaining after @'takeWhile' p t@.
 --
@@ -925,11 +952,9 @@ takeWhileEnd f = _
 -- /Complexity:/ \(\Theta(n)\)
 --
 -- @since 1.0.0
-{-# INLINE [1] dropWhile #-}
 dropWhile :: (AsciiChar -> Bool) -> AsciiText -> AsciiText
 dropWhile f = fromList . L.dropWhile f . toList
 
-{-
 -- | @dropWhileEnd p t@ returns the prefix remaining after @'takeWhileEnd' p t@.
 -- Equivalent to @'reverse' . 'dropWhile' p . 'reverse'@.
 --
@@ -941,12 +966,9 @@ dropWhile f = fromList . L.dropWhile f . toList
 -- /Complexity:/ \(\Theta(n)\)
 --
 -- @since 1.0.0
-{-# INLINE dropWhileEnd #-}
 dropWhileEnd :: (AsciiChar -> Bool) -> AsciiText -> AsciiText
-dropWhileEnd f = _
--}
+dropWhileEnd f = fromList . L.dropWhileEnd f . toList
 
-{-
 -- | @dropAround p@ is equivalent to @'dropWhile' p '.' 'dropWhileEnd' p@.
 --
 -- >>> dropAround ((Just Lower ==) . caseOf) empty
@@ -959,9 +981,7 @@ dropWhileEnd f = _
 -- @since 1.0.1
 dropAround :: (AsciiChar -> Bool) -> AsciiText -> AsciiText
 dropAround p = dropWhile p . dropWhileEnd p
--}
 
-{-
 -- | Remove the longest prefix /and/ suffix of the input comprised entirely of
 -- whitespace characters. We define a \'whitespace character\' as any of the
 -- following:
@@ -989,7 +1009,6 @@ dropAround p = dropWhile p . dropWhileEnd p
 -- @since 1.0.1
 strip :: AsciiText -> AsciiText
 strip = dropAround isSpace
--}
 
 -- | Remove the longest prefix of the input comprised entirely of whitespace
 -- characters. We define a \'whitespace character\' as any of the following:
@@ -1018,7 +1037,6 @@ strip = dropAround isSpace
 stripStart :: AsciiText -> AsciiText
 stripStart = dropWhile isSpace
 
-{-
 -- | Remove the longest suffix of the input comprised entirely of whitespace
 -- characters. We define a \'whitespace character\' as any of the following:
 --
@@ -1045,7 +1063,6 @@ stripStart = dropWhile isSpace
 -- @since 1.0.1
 stripEnd :: AsciiText -> AsciiText
 stripEnd = dropWhileEnd isSpace
--}
 
 -- | @splitAt n t@ is equivalent to @('take' n t, 'drop' n t)@.
 --
@@ -1061,7 +1078,6 @@ stripEnd = dropWhileEnd isSpace
 -- /Complexity:/ \(\Theta(1)\)
 --
 -- @since 1.0.0
-{-# INLINE splitAt #-}
 splitAt :: Int -> AsciiText -> (AsciiText, AsciiText)
 splitAt i at@(AT ba off len)
   | i <= 0 = (mempty, at)
@@ -1208,7 +1224,6 @@ breakOnEnd needle@(AT nba noff nlen) haystack@(AT hba hoff hlen)
       [i] -> Just i
       (_ : is) -> go is
 
-{-
 -- | @break p t@ is equivalent to @('takeWhile' ('not' p) t, 'dropWhile' ('not'
 -- p) t)@.
 --
@@ -1219,7 +1234,7 @@ breakOnEnd needle@(AT nba noff nlen) haystack@(AT hba hoff hlen)
 --
 -- @since 1.0.0
 break :: (AsciiChar -> Bool) -> AsciiText -> (AsciiText, AsciiText)
-break = _
+break f = bimap fromList fromList . P.break f . toList
 
 -- | @span p t@ is equivalent to @('takeWhile' p t, 'dropWhile' p t)@.
 --
@@ -1230,18 +1245,13 @@ break = _
 --
 -- @since 1.0.0
 span :: (AsciiChar -> Bool) -> AsciiText -> (AsciiText, AsciiText)
-span = _
--}
+span f = bimap fromList fromList . P.span f . toList
 
-{-
 -- | Separate a text into a list of texts such that:
 --
 -- * Their concatenation is equal to the original argument; and
 -- * Equal adjacent characters in the original argument are in the same text in
 -- the result.
---
--- This is a specialized form of 'groupBy', and is about 40% faster than
--- @'groupBy' '=='@.
 --
 -- >>> group empty
 -- []
@@ -1256,18 +1266,13 @@ span = _
 --
 -- @since 1.0.0
 group :: AsciiText -> [AsciiText]
-group = _
--}
+group = P.fmap fromList . L.group . toList
 
-{-
 -- | Separate a text into a list of texts such that:
 --
 -- * Their concatenation is equal to the original argument; and
 -- * Adjacent characters for which the function argument returns @True@ are in
 -- the same text in the result.
---
--- 'group' is a special case for the function argument '=='; it is also about
--- 40% faster.
 --
 -- >>> groupBy (<) empty
 -- []
@@ -1280,8 +1285,7 @@ group = _
 --
 -- @since 1.0.0
 groupBy :: (AsciiChar -> AsciiChar -> Bool) -> AsciiText -> [AsciiText]
-groupBy = _
--}
+groupBy f = P.fmap fromList . L.groupBy f . toList
 
 -- | All prefixes of the argument, from shortest to longest.
 --
@@ -1381,7 +1385,6 @@ splitOn needle@(AT nba noff nlen) haystack@(AT hba hoff hlen)
             segment = take chunkLen . drop pos $ haystack
          in segment : go (pos + chunkLen + nlen) ixes
 
-{-
 -- | @split p t@ separates @t@ into components delimited by separators, for
 -- which @p@ returns @True@. The results do not contain the separators.
 --
@@ -1407,10 +1410,18 @@ splitOn needle@(AT nba noff nlen) haystack@(AT hba hoff hlen)
 -- /Complexity:/ \(\Theta(n)\)
 --
 -- @since 1.0.0
-{-# INLINE split #-}
 split :: (AsciiChar -> Bool) -> AsciiText -> [AsciiText]
-split = _
--}
+split f = P.fmap fromList . go . toList
+  where
+    go :: [AsciiChar] -> [[AsciiChar]]
+    go = \case
+      [] -> [[]]
+      (x : xs) ->
+        if f x
+          then []
+          else case go xs of
+            [] -> P.fail "Impossible split"
+            (y : ys) -> (x : y) : ys
 
 -- | Splits a text into chunks of the specified length. Equivalent to repeatedly
 -- 'take'ing the specified length until exhaustion. The last item in the result
@@ -1450,7 +1461,6 @@ chunksOf n t
 
 -- Breaking into lines and words
 
-{-
 -- | Identical to the functions of the same name in the [text
 -- package](http://hackage.haskell.org/package/text-1.2.4.1/docs/Data-Text.html#v:lines),
 -- and [the
@@ -1506,21 +1516,14 @@ chunksOf n t
 --
 -- @since 1.0.1
 lines :: AsciiText -> [AsciiText]
-lines = _
+lines at = case uncons at of
+  Nothing -> []
+  Just _ -> case break ([char| '\n' |] ==) at of
+    (h, t) ->
+      h : case uncons t of
+        Nothing -> []
+        Just (_, at') -> lines at'
 
-lines (AsciiText bs) = coerce . go $ bs
-  where
-    go :: ByteString -> [ByteString]
-    go rest = case BS.uncons rest of
-      Nothing -> []
-      Just _ -> case BS.break (0x0a ==) rest of
-        (h, t) ->
-          h : case BS.uncons t of
-            Nothing -> []
-            Just (_, t') -> go t'
--}
-
-{-
 -- | Identical to the functions of the same name in the [text
 -- package](http://hackage.haskell.org/package/text-1.2.4.1/docs/Data-Text.html#v:words)
 -- and [the
@@ -1557,8 +1560,24 @@ lines (AsciiText bs) = coerce . go $ bs
 --
 -- @since 1.0.1
 words :: AsciiText -> [AsciiText]
-words = _
+words at =
+  let at' = dropWhile isSep at
+   in case length at' of
+        0 -> []
+        _ -> case break isSep at' of
+          (h, t) -> h : words t
+  where
+    isSep :: AsciiChar -> Bool
+    isSep = \case
+      [char| '\t' |] -> True
+      [char| '\n' |] -> True
+      [char| '\v' |] -> True
+      [char| '\f' |] -> True
+      [char| '\r' |] -> True
+      [char| ' ' |] -> True
+      _ -> False
 
+{-
 words (AsciiText bs) = coerce . go $ bs
   where
     go :: ByteString -> [ByteString]
@@ -1671,7 +1690,6 @@ stripPrefix (AT ba off len) at'@(AT ba' off' len')
     P.EQ -> Just . AT ba' (off' + len) $ len' - len
     _ -> Nothing
 
-{-
 -- | Return 'Just' the prefix of the second text if it has the first text as
 -- a suffix, 'Nothing' otherwise.
 --
@@ -1694,10 +1712,10 @@ stripSuffix (AT ba off len) at'@(AT ba' off' len')
   | len' == 0 = Nothing
   | len == 0 = Just at'
   | len > len' = Nothing
-  | otherwise = _
--}
+  | otherwise = case compareByteArrays ba off ba' (off' + len' - len) len of
+    P.EQ -> Just . AT ba' off' $ len' - len
+    _ -> Nothing
 
-{-
 -- | @stripInfix needle haystack@, given a needle of length \(n\) and a haystack
 -- of length \(h\), attempts to find the first instance of @needle@ in
 -- @haystack@. If successful, it returns 'Just' the pair consisting of:
@@ -1761,14 +1779,11 @@ stripSuffix (AT ba off len) at'@(AT ba' off' len')
 --
 -- @since 1.0.1
 stripInfix :: AsciiText -> AsciiText -> Maybe (AsciiText, AsciiText)
-stripInfix = _
-
-stripInfix needle@(AsciiText n) haystack@(AsciiText h)
-  | P.min (length needle) (length haystack) == 0 = Nothing
-  | otherwise = case indices n h of
+stripInfix (AT nba noff nlen) haystack@(AT hba hoff hlen)
+  | P.min nlen hlen == 0 = Nothing
+  | otherwise = case indices nba noff nlen hba hoff hlen of
     [] -> Nothing
-    (ix : _) -> Just (take ix haystack, drop (ix + length needle) haystack)
--}
+    (ix : _) -> Just (take ix haystack, drop (ix + nlen) haystack)
 
 {-
 -- | Find the longest non-empty common prefix of the arguments and return it,

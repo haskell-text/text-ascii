@@ -18,6 +18,7 @@
 * Add new optics `_AsAscii`, `_AsBytesAscii`, `_PackedAscii` in `Text.Ascii`.
   These replace all old optics in that module, except `bytes` and `chars`.
 * `chars` and `bytes` now have `Int` indices.
+* The `char` quasiquoter can now be used in pattern contexts as well.
 
 ## 1.0.1 -- 2021-03-02
 

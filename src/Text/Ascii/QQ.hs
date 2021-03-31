@@ -29,7 +29,7 @@ import Language.Haskell.TH.Syntax
   ( Dec,
     Exp (AppE, ConE, ListE, LitE, VarE),
     Lit (IntegerL),
-    Pat,
+    Pat (ConP, LitP),
     Q,
     Type,
     lift,
@@ -55,7 +55,13 @@ import Text.Megaparsec.Error (errorBundlePretty)
 -- >>> import Text.Ascii.QQ
 
 -- | Allows constructing ASCII characters from literals, whose correctness is
--- checked by the compiler.
+-- checked by the compiler. This can be used in both a value and a pattern
+-- context; thus, the following is possible:
+--
+-- > case foo of
+-- >    [char| '\n' |] -> doSomething
+-- >    [char| '\r' |] -> doSomethingElse
+-- >    _ -> don'tDoAThing
 --
 -- Currently, accepts literal syntax similar to the Haskell parser, with escape
 -- sequences preceded by \'\\\'. In particular, this includes the single quote
@@ -64,9 +70,9 @@ import Text.Megaparsec.Error (errorBundlePretty)
 -- >>> [char| '\'' |]
 -- '0x27'
 --
--- @since 1.0.0
+-- @since 2.0.0
 char :: QuasiQuoter
-char = QuasiQuoter charQQ (errPat "char") (errType "char") (errDec "char")
+char = QuasiQuoter charQQ charPatQQ (errType "char") (errDec "char")
 
 -- | Allows constructing ASCII strings from literals, whose correctness is
 -- checked by the compiler.
@@ -121,33 +127,41 @@ asciiQQ input = case parse (between open close go) "" input of
         _ -> pure c
 
 charQQ :: String -> Q Exp
-charQQ input = case parse (between open close go) "" input of
+charQQ input = case parse (between openC closeC parseAsciiChar) "" input of
   Left err -> fail . errorBundlePretty $ err
   Right result ->
     pure . AppE (ConE 'AsciiChar) . LitE . IntegerL . fromIntegral $ result
-  where
-    open :: Parsec Void String ()
-    open = space *> (void . single $ '\'')
-    close :: Parsec Void String ()
-    close = single '\'' *> space *> eof
-    go :: Parsec Void String Int
-    go = do
-      c1 <- satisfy isValidLead
-      case c1 of
-        '\\' -> do
-          c2 <- oneOf "0abfnrtv\\\'"
-          pure . ord $ case c2 of
-            '0' -> '\0'
-            'a' -> '\a'
-            'b' -> '\b'
-            'f' -> '\f'
-            'n' -> '\n'
-            'r' -> '\r'
-            't' -> '\t'
-            'v' -> '\v'
-            '\\' -> '\\'
-            _ -> '\''
-        _ -> pure . ord $ c1
+
+charPatQQ :: String -> Q Pat
+charPatQQ input = case parse (between openC closeC parseAsciiChar) "" input of
+  Left err -> fail . errorBundlePretty $ err
+  Right result ->
+    pure . ConP 'AsciiChar . (: []) . LitP . IntegerL . fromIntegral $ result
+
+openC :: Parsec Void String ()
+openC = space *> (void . single $ '\'')
+
+closeC :: Parsec Void String ()
+closeC = single '\'' *> space *> eof
+
+parseAsciiChar :: Parsec Void String Int
+parseAsciiChar = do
+  c1 <- satisfy isValidLead
+  case c1 of
+    '\\' -> do
+      c2 <- oneOf "0abfnrtv\\\'"
+      pure . ord $ case c2 of
+        '0' -> '\0'
+        'a' -> '\a'
+        'b' -> '\b'
+        'f' -> '\f'
+        'n' -> '\n'
+        'r' -> '\r'
+        't' -> '\t'
+        'v' -> '\v'
+        '\\' -> '\\'
+        _ -> '\''
+    _ -> pure . ord $ c1
 
 isValidLead :: Char -> Bool
 isValidLead c = isAscii c && (isAlphaNum c || c == ' ' || isSymbol c || isPunctuation c)
