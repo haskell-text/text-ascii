@@ -169,6 +169,7 @@ import Data.Bifunctor (bimap)
 import Data.Bits
   ( bit,
     complement,
+    countLeadingZeros,
     countTrailingZeros,
     popCount,
     shiftR,
@@ -2066,22 +2067,25 @@ count (AT nba noff nlen) (AT hba@(ByteArray hba#) hoff hlen)
   where
     go :: Int -> Int -> Int
     go acc i
-      | i > lim = acc
       | i < limBlock =
         let final = computeBlockMatch i
          in if final == zeroBits
               then go acc (i + 8)
               else
-                let off = select final 0
+                let off = countLeadingZeros final `P.quot` 8
                  in case compareByteArrays hba (i + off) nba noff nlen of
                       P.EQ -> go (acc + 1) (i + nlen + off)
                       _ -> go acc (i + off + 1)
+      | otherwise = go2 acc i
+    go2 :: Int -> Int -> Int
+    go2 acc i
+      | i > lim = acc
       | otherwise =
         if indexByteArray hba i /= w8
-          then go acc (i + 1)
+          then go2 acc (i + 1)
           else case compareByteArrays hba i nba noff nlen of
-            P.EQ -> go (acc + 1) (i + nlen)
-            _ -> go acc (i + 1)
+            P.EQ -> go2 (acc + 1) (i + nlen)
+            _ -> go2 acc (i + 1)
     computeBlockMatch :: Int -> Word64
     computeBlockMatch (I# i#) =
       let w = W64# (indexWord8ArrayAsWord64# hba# i#)
