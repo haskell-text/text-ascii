@@ -173,6 +173,7 @@ import Data.Bits
     popCount,
     shiftR,
     xor,
+    zeroBits,
     (.|.),
   )
 import Data.Bool (Bool (False, True), otherwise, (&&), (||))
@@ -2058,12 +2059,42 @@ findIndex f = F.foldl' go Nothing . P.zip [0 ..] . toList
 --
 -- @since 1.0.1
 count :: AsciiText -> AsciiText -> Int
-count (AT needleBa needleOff needleLen) (AT haystackBa haystackOff haystackLen)
-  | P.min needleLen haystackLen == 0 = 0
-  | otherwise =
-    P.length
-      . indices needleBa needleOff needleLen haystackBa haystackOff
-      $ haystackLen
+count (AT nba noff nlen) (AT hba@(ByteArray hba#) hoff hlen)
+  | P.min nlen hlen == 0 = 0
+  | nlen > hlen = 0
+  | otherwise = go 0 hoff
+  where
+    go :: Int -> Int -> Int
+    go acc i
+      | i > lim = acc
+      | i < limBlock =
+        let final = computeBlockMatch i
+         in if final == zeroBits
+              then go acc (i + 8)
+              else
+                let off = select final 0
+                 in case compareByteArrays hba (i + off) nba noff nlen of
+                      P.EQ -> go (acc + 1) (i + nlen + off)
+                      _ -> go acc (i + off + 1)
+      | otherwise =
+        if indexByteArray hba i /= w8
+          then go acc (i + 1)
+          else case compareByteArrays hba i nba noff nlen of
+            P.EQ -> go (acc + 1) (i + nlen)
+            _ -> go acc (i + 1)
+    computeBlockMatch :: Int -> Word64
+    computeBlockMatch (I# i#) =
+      let w = W64# (indexWord8ArrayAsWord64# hba# i#)
+          input = w `xor` blockFirst
+       in complement ((input + loOrderMask) .|. loOrderMask)
+    w8 :: Word8
+    w8 = indexByteArray nba noff
+    blockFirst :: Word64
+    blockFirst = broadcast w8
+    lim :: Int
+    lim = hlen + hoff - nlen
+    limBlock :: Int
+    limBlock = lim - 7
 
 -- Zipping
 
@@ -2396,13 +2427,14 @@ indices nba noff nlen hba@(ByteArray hba#) hoff hlen
       | otherwise = case compareByteArrays hba byteI nba noff nlen of
         P.EQ -> byteI : byteStep lim (byteI + nlen)
         _ -> byteStep lim (byteI + 1)
-    loOrderMask :: Word64
-    loOrderMask = 0x7F7F7F7F7F7F7F7F
     skip :: Int -> [Int] -> [Int]
     skip i = P.dropWhile (\j -> j - i < nlen)
 
 broadcast :: Word8 -> Word64
 broadcast w8 = P.fromIntegral w8 * (0x0101010101010101 :: Word64)
+
+loOrderMask :: Word64
+loOrderMask = 0x7F7F7F7F7F7F7F7F
 
 select :: Word64 -> Int -> Int
 select (W64# mask) i =
