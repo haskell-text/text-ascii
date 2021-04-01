@@ -2331,6 +2331,11 @@ indices :: ByteArray -> Int -> Int -> ByteArray -> Int -> Int -> [Int]
 indices nba noff nlen hba@(ByteArray hba#) hoff hlen
   | nlen == 0 = []
   | nlen > hlen = []
+  | nlen == 1 = do
+    let w8 :: Word8 = indexByteArray nba noff
+    let d :: Int = hlen `P.quot` 8
+    L.concatMap (wordStep1 w8) [hoff, hoff + 8 .. hoff + (8 * d - 1)]
+      <> byteStep1 w8 (hoff + 8 * d)
   | otherwise =
     L.concatMap wordStep [hoff, hoff + 8 .. hoff + hlen - nlen + 1]
       <> byteStep (hoff + hlen - nlen + 1) (hoff + 8 * ((hlen - nlen) `P.quot` 8))
@@ -2341,6 +2346,21 @@ indices nba noff nlen hba@(ByteArray hba#) hoff hlen
     first = indexByteArray nba noff
     blockLast :: Word64
     blockLast = broadcast . indexByteArray nba $ noff + nlen - 1
+    wordStep1 :: Word8 -> Int -> [Int]
+    wordStep1 w8 wordI@(I# wordI#) = do
+      let w :: Word64 = W64# (indexWord8ArrayAsWord64# hba# wordI#)
+      let input :: Word64 = w `xor` broadcast w8
+      let final :: Word64 = complement ((input + loOrderMask) .|. loOrderMask)
+      case popCount final of
+        0 -> []
+        1 -> [wordI + (countTrailingZeros final `P.quot` 8)]
+        2 -> P.fmap ((wordI +) . select final) [0, 1]
+        3 -> P.fmap ((wordI +) . select final) [0 .. 2]
+        4 -> P.fmap ((wordI +) . select final) [0 .. 3]
+        5 -> P.fmap ((wordI +) . select final) [0 .. 4]
+        6 -> P.fmap ((wordI +) . select final) [0 .. 5]
+        7 -> P.fmap ((wordI +) . select final) [0 .. 6]
+        _ -> [wordI .. wordI + 7]
     wordStep :: Int -> [Int]
     wordStep wordI@(I# wordI#) = do
       let w :: Word64 = W64# (indexWord8ArrayAsWord64# hba# wordI#)
@@ -2351,7 +2371,7 @@ indices nba noff nlen hba@(ByteArray hba#) hoff hlen
       case popCount final of
         0 -> []
         1 -> do
-          let off = countTrailingZeros final `P.div` 8
+          let off = countTrailingZeros final `P.quot` 8
           case compareByteArrays hba (wordI + off) nba noff nlen of
             P.EQ -> [wordI + off]
             _ -> []
@@ -2364,6 +2384,11 @@ indices nba noff nlen hba@(ByteArray hba#) hoff hlen
       (sI : sIs) -> case compareByteArrays hba (wordI + sI) nba noff nlen of
         P.EQ -> wordI + sI : (selectGo wordI final . skip sI $ sIs)
         _ -> selectGo wordI final sIs
+    byteStep1 :: Word8 -> Int -> [Int]
+    byteStep1 w8 byteI
+      | byteI == hlen = []
+      | indexByteArray hba byteI == w8 = byteI : byteStep1 w8 (byteI + 1)
+      | otherwise = byteStep1 w8 (byteI + 1)
     byteStep :: Int -> Int -> [Int]
     byteStep lim byteI
       | byteI > lim = []

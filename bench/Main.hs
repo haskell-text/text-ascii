@@ -27,15 +27,15 @@ runSherlockTests :: Text -> AsciiText -> IO ()
 runSherlockTests asText asAsciiText =
   defaultMain
     [ bgroup
-        "Matching"
-        [ bench "Match, Text" . nf (T.count "Sherlock") $ asText,
-          bcompare "$NF == \"Match, Text\"" . bench "Match, AsciiText" . nf (TA.count [TA.ascii| "Sherlock" |]) $ asAsciiText,
-          bench "Near-miss, Text" . nf (T.count "Sebastian") $ asText,
-          bcompare "$NF == \"Near-miss, Text\"" . bench "Near-miss, AsciiText" . nf (TA.count [TA.ascii| "Sebastian" |]) $ asAsciiText,
-          bench "Match 1, Text" . nf (T.count "S") $ asText,
-          bcompare "$NF == \"Match 1, Text\"" . bench "Match 1, AsciiText" . nf (TA.count [TA.ascii| "S" |]) $ asAsciiText,
-          bench "No match, Text" . nf (T.count "Simping") $ asText,
-          bcompare "$NF == \"No match, Text\"" . bench "No match, AsciiText" . nf (TA.count [TA.ascii| "Simping" |]) $ asAsciiText
+        "Counting"
+        [ bench "Count, Text" . nf (T.count "Sherlock") $ asText,
+          bcompare "$NF == \"Count, Text\"" . bench "Count, AsciiText" . nf (TA.count [TA.ascii| "Sherlock" |]) $ asAsciiText,
+          bench "Count, near-miss, Text" . nf (T.count "Sebastian") $ asText,
+          bcompare "$NF == \"Count, near-miss, Text\"" . bench "Count, near-miss, AsciiText" . nf (TA.count [TA.ascii| "Sebastian" |]) $ asAsciiText,
+          bench "Count 1, Text" . nf (T.count "S") $ asText,
+          bcompare "$NF == \"Count 1, Text\"" . bench "Count 1, AsciiText" . nf (TA.count [TA.ascii| "S" |]) $ asAsciiText,
+          bench "Count, no match, Text" . nf (T.count "Simping") $ asText,
+          bcompare "$NF == \"Count, no match, Text\"" . bench "Count, no match, AsciiText" . nf (TA.count [TA.ascii| "Simping" |]) $ asAsciiText
         ],
       bgroup
         "Replacement"
