@@ -53,9 +53,9 @@ benchmark string-search
   main-is:          Main.hs
   build-depends:
     , base
-    , bytestring
-    , tasty-bench  ^>=0.2.2
-    , text
+    , bytestring   ^>=0.11.1.0
+    , tasty-bench  ^>=0.2.4
+    , text         ^>=1.2.4.1
     , text-ascii
 
   ghc-options:
