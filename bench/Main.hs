@@ -28,57 +28,60 @@ runSherlockTests asText asAsciiText =
   defaultMain
     [ bgroup
         "Counting"
-        [ bench "Count, Text" . nf (T.count "Sherlock") $ asText,
-          bcompare "$NF == \"Count, Text\"" . bench "Count, AsciiText" . nf (TA.count [TA.ascii| "Sherlock" |]) $ asAsciiText,
-          bench "Count, near-miss, Text" . nf (T.count "Sebastian") $ asText,
-          bcompare "$NF == \"Count, near-miss, Text\"" . bench "Count, near-miss, AsciiText" . nf (TA.count [TA.ascii| "Sebastian" |]) $ asAsciiText,
-          bench "Count 1, Text" . nf (T.count "S") $ asText,
-          bcompare "$NF == \"Count 1, Text\"" . bench "Count 1, AsciiText" . nf (TA.count [TA.ascii| "S" |]) $ asAsciiText,
-          bench "Count, no match, Text" . nf (T.count "Simping") $ asText,
-          bcompare "$NF == \"Count, no match, Text\"" . bench "Count, no match, AsciiText" . nf (TA.count [TA.ascii| "Simping" |]) $ asAsciiText
-        ],
-      bgroup
-        "Replacement"
-        [ bench "Replace, Text" . nf (T.replace "Sherlock" "Moriarty") $ asText,
-          bcompare "$NF == \"Replace, Text\"" . bench "Replace, AsciiText" . nf (TA.replace [TA.ascii| "Sherlock" |] [TA.ascii| "Moriarty" |]) $ asAsciiText,
-          bench "Replace near-miss, Text" . nf (T.replace "Sebastian" "Moriarty") $ asText,
-          bcompare "$NF == \"Replace near-miss, Text\"" . bench "Replace near-miss, AsciiText" . nf (TA.replace [TA.ascii| "Sebastian" |] [TA.ascii| "Moriarty" |]) $ asAsciiText,
-          bench "Replace 1, Text" . nf (T.replace "S" "M") $ asText,
-          bcompare "$NF == \"Replace 1, Text\"" . bench "Replace 1, AsciiText" . nf (TA.replace [TA.ascii| "S" |] [TA.ascii| "M" |]) $ asAsciiText,
-          bench "Replace missing, Text" . nf (T.replace "Simping" "Dancing") $ asText,
-          bcompare "$NF == \"Replace missing, Text\"" . bench "Replace missing, AsciiText" . nf (TA.replace [TA.ascii| "Simping" |] [TA.ascii| "Dancing" |]) $ asAsciiText
-        ],
-      bgroup
-        "Breaking"
-        [ bench "Break, Text" . nf (T.breakOn "Sherlock") $ asText,
-          bench "Break, AsciiText" . nf (TA.breakOn [TA.ascii| "Sherlock" |]) $ asAsciiText,
-          bench "Break near-miss, Text" . nf (T.breakOn "Sebastian") $ asText,
-          bench "Break near-miss, AsciiText" . nf (TA.breakOn [TA.ascii| "Sebastian" |]) $ asAsciiText,
-          bench "Break 1, Text" . nf (T.breakOn "S") $ asText,
-          bench "Break 1, AsciiText" . nf (TA.breakOn [TA.ascii| "S" |]) $ asAsciiText,
-          bench "Break missing, Text" . nf (T.breakOn "Simping") $ asText,
-          bench "Break missing, AsciiText" . nf (TA.breakOn [TA.ascii| "Simping" |]) $ asAsciiText
-        ],
-      bgroup
-        "Breaking (end)"
-        [ bench "Break, Text" . nf (T.breakOnEnd "Sherlock") $ asText,
-          bench "Break, AsciiText" . nf (TA.breakOnEnd [TA.ascii| "Sherlock" |]) $ asAsciiText,
-          bench "Break near-miss, Text" . nf (T.breakOnEnd "Sebastian") $ asText,
-          bench "Break near-miss, AsciiText" . nf (TA.breakOnEnd [TA.ascii| "Sebastian" |]) $ asAsciiText,
-          bench "Break 1, Text" . nf (T.breakOnEnd "S") $ asText,
-          bench "Break 1, AsciiText" . nf (TA.breakOnEnd [TA.ascii| "S" |]) $ asAsciiText,
-          bench "Break missing, Text" . nf (T.breakOnEnd "Simping") $ asText,
-          bench "Break missing, AsciiText" . nf (TA.breakOnEnd [TA.ascii| "Simping" |]) $ asAsciiText
-        ],
-      bgroup
-        "Breaking (all)"
-        [ bench "Break, Text" . nf (T.breakOnAll "Sherlock") $ asText,
-          bench "Break, AsciiText" . nf (TA.breakOnAll [TA.ascii| "Sherlock" |]) $ asAsciiText,
-          bench "Break near-miss, Text" . nf (T.breakOnAll "Sebastian") $ asText,
-          bench "Break near-miss, AsciiText" . nf (TA.breakOnAll [TA.ascii| "Sebastian" |]) $ asAsciiText,
-          bench "Break 1, Text" . nf (T.breakOnAll "S") $ asText,
-          bench "Break 1, AsciiText" . nf (TA.breakOnAll [TA.ascii| "S" |]) $ asAsciiText,
-          bench "Break missing, Text" . nf (T.breakOnAll "Simping") $ asText,
-          bench "Break missing, AsciiText" . nf (TA.breakOnAll [TA.ascii| "Simping" |]) $ asAsciiText
+        [ bench "Count, AsciiText" . nf (TA.count [TA.ascii| "Sherlock" |]) $ asAsciiText,
+          bcompare "$NF == \"Count, AsciiText\"" . bench "Count, Text" . nf (T.count "Sherlock") $ asText,
+          bench "Count, near-miss, AsciiText" . nf (TA.count [TA.ascii| "Sebastian" |]) $ asAsciiText,
+          bcompare "$NF == \"Count, near-miss, AsciiText\"" . bench "Count, near-miss, Text" . nf (T.count "Sebastian") $ asText,
+          bench "Count 1, AsciiText" . nf (TA.count [TA.ascii| "S" |]) $ asAsciiText,
+          bcompare "$NF == \"Count 1, AsciiText\"" . bench "Count 1, Text" . nf (T.count "S") $ asText,
+          bench "Count, no match, AsciiText" . nf (TA.count [TA.ascii| "Shevlock" |]) $ asAsciiText,
+          bcompare "$NF == \"Count, no match, AsciiText\"" . bench "Count, no match, Text" . nf (T.count "Shevlock") $ asText
         ]
     ]
+
+{-
+  bgroup
+    "Replacement"
+    [ bench "Replace, Text" . nf (T.replace "Sherlock" "Moriarty") $ asText,
+      bcompare "$NF == \"Replace, Text\"" . bench "Replace, AsciiText" . nf (TA.replace [TA.ascii| "Sherlock" |] [TA.ascii| "Moriarty" |]) $ asAsciiText,
+      bench "Replace near-miss, Text" . nf (T.replace "Sebastian" "Moriarty") $ asText,
+      bcompare "$NF == \"Replace near-miss, Text\"" . bench "Replace near-miss, AsciiText" . nf (TA.replace [TA.ascii| "Sebastian" |] [TA.ascii| "Moriarty" |]) $ asAsciiText,
+      bench "Replace 1, Text" . nf (T.replace "S" "M") $ asText,
+      bcompare "$NF == \"Replace 1, Text\"" . bench "Replace 1, AsciiText" . nf (TA.replace [TA.ascii| "S" |] [TA.ascii| "M" |]) $ asAsciiText,
+      bench "Replace missing, Text" . nf (T.replace "Simping" "Dancing") $ asText,
+      bcompare "$NF == \"Replace missing, Text\"" . bench "Replace missing, AsciiText" . nf (TA.replace [TA.ascii| "Simping" |] [TA.ascii| "Dancing" |]) $ asAsciiText
+    ],
+  bgroup
+    "Breaking"
+    [ bench "Break, Text" . nf (T.breakOn "Sherlock") $ asText,
+      bench "Break, AsciiText" . nf (TA.breakOn [TA.ascii| "Sherlock" |]) $ asAsciiText,
+      bench "Break near-miss, Text" . nf (T.breakOn "Sebastian") $ asText,
+      bench "Break near-miss, AsciiText" . nf (TA.breakOn [TA.ascii| "Sebastian" |]) $ asAsciiText,
+      bench "Break 1, Text" . nf (T.breakOn "S") $ asText,
+      bench "Break 1, AsciiText" . nf (TA.breakOn [TA.ascii| "S" |]) $ asAsciiText,
+      bench "Break missing, Text" . nf (T.breakOn "Simping") $ asText,
+      bench "Break missing, AsciiText" . nf (TA.breakOn [TA.ascii| "Simping" |]) $ asAsciiText
+    ],
+  bgroup
+    "Breaking (end)"
+    [ bench "Break, Text" . nf (T.breakOnEnd "Sherlock") $ asText,
+      bench "Break, AsciiText" . nf (TA.breakOnEnd [TA.ascii| "Sherlock" |]) $ asAsciiText,
+      bench "Break near-miss, Text" . nf (T.breakOnEnd "Sebastian") $ asText,
+      bench "Break near-miss, AsciiText" . nf (TA.breakOnEnd [TA.ascii| "Sebastian" |]) $ asAsciiText,
+      bench "Break 1, Text" . nf (T.breakOnEnd "S") $ asText,
+      bench "Break 1, AsciiText" . nf (TA.breakOnEnd [TA.ascii| "S" |]) $ asAsciiText,
+      bench "Break missing, Text" . nf (T.breakOnEnd "Simping") $ asText,
+      bench "Break missing, AsciiText" . nf (TA.breakOnEnd [TA.ascii| "Simping" |]) $ asAsciiText
+    ],
+  bgroup
+    "Breaking (all)"
+    [ bench "Break, Text" . nf (T.breakOnAll "Sherlock") $ asText,
+      bench "Break, AsciiText" . nf (TA.breakOnAll [TA.ascii| "Sherlock" |]) $ asAsciiText,
+      bench "Break near-miss, Text" . nf (T.breakOnAll "Sebastian") $ asText,
+      bench "Break near-miss, AsciiText" . nf (TA.breakOnAll [TA.ascii| "Sebastian" |]) $ asAsciiText,
+      bench "Break 1, Text" . nf (T.breakOnAll "S") $ asText,
+      bench "Break 1, AsciiText" . nf (TA.breakOnAll [TA.ascii| "S" |]) $ asAsciiText,
+      bench "Break missing, Text" . nf (T.breakOnAll "Simping") $ asText,
+      bench "Break missing, AsciiText" . nf (TA.breakOnAll [TA.ascii| "Simping" |]) $ asAsciiText
+    ]
+] -}
