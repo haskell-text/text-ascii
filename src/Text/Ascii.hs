@@ -169,7 +169,6 @@ import Data.Bifunctor (bimap)
 import Data.Bits
   ( bit,
     complement,
-    countLeadingZeros,
     countTrailingZeros,
     popCount,
     shiftR,
@@ -197,6 +196,14 @@ import Data.Primitive.ByteArray
     shrinkMutableByteArray,
     unsafeFreezeByteArray,
     writeByteArray,
+  )
+import Data.Primitive.SmallArray
+  ( SmallArray,
+    SmallMutableArray,
+    indexSmallArray,
+    newSmallArray,
+    unsafeFreezeSmallArray,
+    writeSmallArray,
   )
 import Data.Semigroup (stimes)
 import Data.Word (Word8)
@@ -2063,8 +2070,74 @@ count :: AsciiText -> AsciiText -> Int
 count (AT nba noff nlen) (AT hba@(ByteArray hba#) hoff hlen)
   | P.min nlen hlen == 0 = 0
   | nlen > hlen = 0
-  | otherwise = go 0 hoff
+  | nlen == 1 = goBig1 0 hoff
+  | otherwise = goBig 0 hoff
   where
+    goBig1 :: Int -> Int -> Int
+    goBig1 acc i
+      | i >= limBlock = goSmall1 acc i
+      | otherwise =
+        let final = computeBlockMatch i
+         in goBig1 (acc + popCount final) (i + 8)
+    goBig :: Int -> Int -> Int
+    goBig acc i
+      | i >= limBlock = goSmall acc i
+      | otherwise =
+        let final = computeBlockMatch i
+         in if final == zeroBits
+              then goBig acc $ i + 8
+              else
+                let off = select0 final
+                    last = P.fromIntegral . indexByteArray @Word8 hba $ i + nlen - 1 + off
+                 in case compareByteArrays hba (i + off) nba noff nlen of
+                      P.EQ -> goBig (acc + 1) (i + nlen + off)
+                      _ -> goBig acc (i + off + indexSmallArray lastOcc last)
+    goSmall1 :: Int -> Int -> Int
+    goSmall1 acc i
+      | i > lim = acc
+      | otherwise =
+        if indexByteArray hba i /= w8
+          then goSmall1 acc (i + 1)
+          else goSmall1 (acc + 1) (i + 1)
+    goSmall :: Int -> Int -> Int
+    goSmall acc i
+      | i > lim = acc
+      | otherwise =
+        let last = P.fromIntegral . indexByteArray @Word8 hba $ i + nlen - 1
+         in if indexByteArray hba i /= w8
+              then goSmall acc (i + indexSmallArray lastOcc last)
+              else case compareByteArrays hba i nba noff nlen of
+                P.EQ -> goSmall (acc + 1) (i + nlen)
+                _ -> goSmall acc (i + indexSmallArray lastOcc last)
+    lim :: Int
+    lim = hlen + hoff - nlen
+    limBlock :: Int
+    limBlock = lim - 7
+    w8 :: Word8
+    w8 = indexByteArray nba noff
+    blockFirst :: Word64
+    blockFirst = broadcast w8
+    select0 :: Word64 -> Int
+    select0 (W64# mask) =
+      let !(W64# src) = 1
+          res = W64# (ctz64# (pdep64# src mask))
+       in P.fromIntegral (res `shiftR` 3)
+    lastOcc :: SmallArray Int
+    lastOcc = runST $ do
+      sa <- newSmallArray 128 nlen
+      traverse_ (doLastOcc sa) [0 .. P.max (nlen - 2) 0]
+      unsafeFreezeSmallArray sa
+    doLastOcc :: SmallMutableArray s Int -> Int -> ST s ()
+    doLastOcc sa i = do
+      let c :: Int = P.fromIntegral . indexByteArray @Word8 nba $ noff + i
+      writeSmallArray sa c (nlen - 1 - i)
+    computeBlockMatch :: Int -> Word64
+    computeBlockMatch (I# i#) =
+      let w = W64# (indexWord8ArrayAsWord64# hba# i#)
+          input = w `xor` blockFirst
+       in complement ((input + loOrderMask) .|. loOrderMask)
+
+{-
     go :: Int -> Int -> Int
     go acc i
       | i < limBlock =
@@ -2099,6 +2172,7 @@ count (AT nba noff nlen) (AT hba@(ByteArray hba#) hoff hlen)
     lim = hlen + hoff - nlen
     limBlock :: Int
     limBlock = lim - 7
+-}
 
 -- Zipping
 

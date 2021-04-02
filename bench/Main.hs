@@ -8,6 +8,7 @@ import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
 import System.IO (Handle, IOMode (ReadMode), withFile)
 import Test.Tasty.Bench (bcompare, bench, bgroup, defaultMain, nf)
+import Test.Tasty.HUnit (assertEqual, testCase)
 import Text.Ascii (AsciiText)
 import qualified Text.Ascii as TA
 
@@ -28,7 +29,14 @@ runSherlockTests asText asAsciiText =
   defaultMain
     [ bgroup
         "Counting"
-        [ bench "Count, AsciiText" . nf (TA.count [TA.ascii| "Sherlock" |]) $ asAsciiText,
+        [ testCase "Correctness" $ do
+            assertEqual "Count" (T.count "Sherlock" asText) . TA.count [TA.ascii| "Sherlock" |] $ asAsciiText
+            assertEqual "Count, dense" (T.count "of" asText) . TA.count [TA.ascii| "of" |] $ asAsciiText
+            assertEqual "Count, near-miss" (T.count "Sebastian" asText) . TA.count [TA.ascii| "Sebastian" |] $ asAsciiText
+            assertEqual "Count 1" (T.count "S" asText) . TA.count [TA.ascii| "S" |] $ asAsciiText
+            assertEqual "Count 1, dense" (T.count "o" asText) . TA.count [TA.ascii| "o" |] $ asAsciiText
+            assertEqual "Count, no match" (T.count "Shevlock" asText) . TA.count [TA.ascii| "Shevlock" |] $ asAsciiText,
+          bench "Count, AsciiText" . nf (TA.count [TA.ascii| "Sherlock" |]) $ asAsciiText,
           bcompare "$NF == \"Count, AsciiText\"" . bench "Count, Text" . nf (T.count "Sherlock") $ asText,
           bench "Count, dense, AsciiText" . nf (TA.count [TA.ascii| "of" |]) $ asAsciiText,
           bcompare "$NF == \"Count, dense, AsciiText\"" . bench "Count, dense, Text" . nf (T.count "of") $ asText,
