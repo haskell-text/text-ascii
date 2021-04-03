@@ -54,7 +54,7 @@ benchmark string-search
   build-depends:
     , base
     , bytestring   ^>=0.11.1.0
-    , tasty-bench  ^>=0.2.4
+    , tasty-bench  ^>=0.2.5
     , tasty-hunit  ^>=0.10.0.3
     , text         ^>=1.2.4.1
     , text-ascii

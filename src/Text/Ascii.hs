@@ -2085,7 +2085,9 @@ count (AT nba noff nlen) (AT hba@(ByteArray hba#) hoff hlen)
       | otherwise =
         let final = computeBlockMatch i
          in if final == zeroBits
-              then goBig acc $ i + 8
+              then
+                let last = P.fromIntegral . indexByteArray @Word8 hba $ i + nlen - 1 + 7
+                 in goBig acc $ i + 7 + indexSmallArray lastOcc last
               else
                 let off = select0 final
                     last = P.fromIntegral . indexByteArray @Word8 hba $ i + nlen - 1 + off
