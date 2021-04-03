@@ -63,6 +63,18 @@ We check on the following platforms:
 * Linux
 * MacOS
 
+## But is it good at the performance things?
+
+We have some benchmarks you can run, along with a baseline, in `bench`. Our
+baseline is captured with the following settings:
+
+```
+--ghc-options=-O0 --benchmark-options='--stdev=1 --csv=bench/string-search-o0.csv --timeout=200s +RTS -T'
+```
+
+Currently , we only benchmark string matching against `text`. You can find our
+source data in `bench-data`.
+
 ## What can I do with this?
 
 The project is licensed Apache 2.0 (SPDX code
