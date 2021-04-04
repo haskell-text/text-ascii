@@ -186,6 +186,7 @@ import Data.Kind (Type)
 import qualified Data.List as L
 import Data.Maybe (Maybe (Just, Nothing))
 import Data.Monoid (mempty)
+import Data.Ord (comparing)
 import Data.Primitive.ByteArray
   ( ByteArray (ByteArray),
     MutableByteArray (MutableByteArray),
@@ -216,7 +217,6 @@ import GHC.Exts
     pdep64#,
     writeWord8ArrayAsWord64#,
     (+#),
-    (-#),
   )
 import GHC.Word (Word64 (W64#))
 import Optics.Indexed.Core (itraverse_)
@@ -2069,12 +2069,13 @@ findIndex f = F.foldl' go Nothing . P.zip [0 ..] . toList
 --
 -- @since 1.0.1
 count :: AsciiText -> AsciiText -> Int
-count (AT nba noff nlen@(I# nlen#)) (AT hba@(ByteArray hba#) hoff hlen)
+count (AT nba noff nlen) (AT hba@(ByteArray hba#) hoff hlen)
   | P.min nlen hlen == 0 = 0
   | nlen > hlen = 0
   | nlen == 1 = goBig1 0 hoff
   | nlen == 2 = goBig2 0 hoff
-  | otherwise = goBig 0 hoff
+  | leastSimilarIx == nlen - 1 = goBig 0 hoff -- all the same
+  | otherwise = goBig 0 hoff -- not all the same
   where
     goBig :: Int -> Int -> Int
     goBig acc i
@@ -2137,15 +2138,21 @@ count (AT nba noff nlen@(I# nlen#)) (AT hba@(ByteArray hba#) hoff hlen)
        in complement ((input + loOrderMask) .|. loOrderMask)
     computeMulaMatch (I# i#) =
       let wStart = W64# (indexWord8ArrayAsWord64# hba# i#)
-          wEnd = W64# (indexWord8ArrayAsWord64# hba# (i# +# nlen# -# 1#))
+          !(I# off#) = leastSimilarIx
+          wEnd = W64# (indexWord8ArrayAsWord64# hba# (i# +# off#))
           input = (wStart `xor` blockFirst) .|. (wEnd `xor` blockEnd)
        in complement ((input + loOrderMask) .|. loOrderMask)
     w8 :: Word8
     w8 = indexByteArray nba noff
     blockFirst :: Word64
     blockFirst = broadcast w8
+    leastSimilarIx :: Int
+    leastSimilarIx =
+      case L.maximumBy (comparing P.snd) . P.fmap distFromFirst $ [1 .. nlen - 1] of
+        (_, 0) -> nlen - 1
+        (i, _) -> i
     blockEnd :: Word64
-    blockEnd = broadcast . indexByteArray nba $ noff + nlen - 1
+    blockEnd = broadcast . indexByteArray nba $ noff + leastSimilarIx
     lastOcc :: SmallArray Int
     lastOcc = runST $ do
       sa <- newSmallArray 128 nlen
@@ -2160,6 +2167,8 @@ count (AT nba noff nlen@(I# nlen#)) (AT hba@(ByteArray hba#) hoff hlen)
       let !(W64# src) = 1
           res = W64# (ctz64# (pdep64# src mask))
        in P.fromIntegral (res `shiftR` 3)
+    distFromFirst :: Int -> (Int, Int)
+    distFromFirst i = (i, popCount . (w8 `xor`) . indexByteArray nba $ noff + i)
 
 {-
   | nlen == 3 = goBig3 0 hoff
