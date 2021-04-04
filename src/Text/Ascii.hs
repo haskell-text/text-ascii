@@ -2073,9 +2073,26 @@ count (AT nba noff nlen) (AT hba@(ByteArray hba#) hoff hlen)
   | P.min nlen hlen == 0 = 0
   | nlen > hlen = 0
   | nlen == 1 = goBig1 0 hoff
-  | leastSimilarIx == nlen - 1 = goBig 0 hoff -- all the same
-  | otherwise = goBig 0 hoff -- not all the same
+  | leastSimilarIx == nlen = goRun 0 . findFirstMatch $ hoff
+  | otherwise = goBig 0 hoff
   where
+    findFirstMatch :: Int -> Int
+    findFirstMatch i
+      | i < hlen - 8 =
+        let final = computeBlockMatch i
+         in if final == zeroBits
+              then findFirstMatch (i + 8)
+              else i + select0 final
+      | i >= hlen = hlen
+      | indexByteArray hba i == w8 = i
+      | otherwise = findFirstMatch (i + 1)
+    goRun :: Int -> Int -> Int
+    goRun acc i
+      | i > lim = acc
+      | indexByteArray hba (i + nlen - 1) /= w8 = goRun acc . findFirstMatch $ i + nlen
+      | otherwise = case compareByteArrays hba i nba noff nlen of
+        P.EQ -> goRun (acc + 1) . findFirstMatch $ i + nlen
+        _ -> goRun acc . findFirstMatch $ i + 1
     goBig :: Int -> Int -> Int
     goBig acc i
       | i >= limBlock = goSmall acc i
@@ -2136,7 +2153,7 @@ count (AT nba noff nlen) (AT hba@(ByteArray hba#) hoff hlen)
     leastSimilarIx :: Int
     leastSimilarIx =
       case L.maximumBy (comparing P.snd) . P.fmap distFromFirst $ [1 .. nlen - 1] of
-        (_, 0) -> nlen - 1
+        (_, 0) -> nlen
         (i, _) -> i
     blockEnd :: Word64
     blockEnd = broadcast . indexByteArray nba $ noff + leastSimilarIx
