@@ -1,23 +1,23 @@
 Name,Mean (ps),2*Stdev (ps),Allocated,Copied
-"All.Counting.Count, AsciiText",3079456467,51221308,0,0
-"All.Counting.Count, Text",5254281903,43207024,3260,4
-"All.Counting.Count, dense, AsciiText",3149283364,43343696,1234,1
-"All.Counting.Count, dense, Text",7061883539,81908672,65272,45
-"All.Counting.Count, near-miss, AsciiText",3027127646,59175778,659,1
-"All.Counting.Count, near-miss, Text",4542226021,9017240,0,0
-"All.Counting.Count, long, AsciiText",6071146368,117947498,0,0
-"All.Counting.Count, long, Text",6105011073,58525228,0,0
-"All.Counting.Count 5, AsciiText",5482578677,310666382,1226,0
-"All.Counting.Count 5, Text",5587422201,37651394,386061,198
-"All.Counting.Count 4, AsciiText",13977704103,51719706,0,0
-"All.Counting.Count 4, Text",10053756370,140455422,97912,57
-"All.Counting.Count 3, AsciiText",12637547431,88498664,0,0
-"All.Counting.Count 3, Text",8811802675,25313720,84448,42
-"All.Counting.Count 2, AsciiText",13850883389,129227332,649,1
-"All.Counting.Count 2, Text",8508412718,112525788,3440247,1488
-"All.Counting.Count 1, AsciiText",5637289864,17348582,0,0
-"All.Counting.Count 1, Text",8535465466,147240590,0,0
-"All.Counting.Count 1, dense, AsciiText",5623456210,80901312,0,0
-"All.Counting.Count 1, dense, Text",13831999000,261520518,0,0
-"All.Counting.Count, no match, AsciiText",3322305017,27770712,1152,1
-"All.Counting.Count, no match, Text",4954913775,42293072,0,0
+"All.Counting.Count, AsciiText",9704919256,164959918,0,0
+"All.Counting.Count, Text",6516517882,39675810,3258,4
+"All.Counting.Count, dense, AsciiText",5033168506,83965694,0,0
+"All.Counting.Count, dense, Text",5516495643,101901362,32634,48
+"All.Counting.Count, near-miss, AsciiText",9297716621,75222716,0,0
+"All.Counting.Count, near-miss, Text",5788843025,46591494,0,0
+"All.Counting.Count, long, AsciiText",6087756471,57702810,0,0
+"All.Counting.Count, long, Text",5873211700,95012316,0,0
+"All.Counting.Count 5, AsciiText",5648625653,93627702,0,0
+"All.Counting.Count 5, Text",5510171463,431798454,386061,198
+"All.Counting.Count 4, AsciiText",11184719193,204504474,0,0
+"All.Counting.Count 4, Text",9514527764,37627210,99544,54
+"All.Counting.Count 3, AsciiText",10085202620,24459516,0,0
+"All.Counting.Count 3, Text",8325436400,156921498,81592,47
+"All.Counting.Count 2, AsciiText",8056848187,83973156,0,0
+"All.Counting.Count 2, Text",8190630437,89059092,3440247,1488
+"All.Counting.Count 1, AsciiText",5211667871,16189878,198,0
+"All.Counting.Count 1, Text",8047018096,141437616,0,0
+"All.Counting.Count 1, dense, AsciiText",5079271548,54427208,0,0
+"All.Counting.Count 1, dense, Text",12886423450,60537026,0,0
+"All.Counting.Count, no match, AsciiText",3528236073,29255204,0,0
+"All.Counting.Count, no match, Text",4688373684,41851188,0,0

@@ -30,9 +30,9 @@ runSherlockTests asText asAsciiText =
     [ bgroup
         "Counting"
         [ testCase "Correctness" $ do
-            assertEqual "Count" (T.count "Sherlock" asText) . TA.count [TA.ascii| "Sherlock" |] $ asAsciiText
-            assertEqual "Count, dense" (T.count "American" asText) . TA.count [TA.ascii| "American" |] $ asAsciiText
-            assertEqual "Count, near-miss" (T.count "Shevlock" asText) . TA.count [TA.ascii| "Shevlock" |] $ asAsciiText
+            assertEqual "Count" (T.count "extensive" asText) . TA.count [TA.ascii| "extensive" |] $ asAsciiText
+            assertEqual "Count, dense" (T.count "condition" asText) . TA.count [TA.ascii| "condition" |] $ asAsciiText
+            assertEqual "Count, near-miss" (T.count "extenzive" asText) . TA.count [TA.ascii| "extenzive" |] $ asAsciiText
             assertEqual "Count, long" (T.count "incomprehensible" asText) . TA.count [TA.ascii| "incomprehensible" |] $ asAsciiText
             assertEqual "Count 5" (T.count "which" asText) . TA.count [TA.ascii| "which" |] $ asAsciiText
             assertEqual "Count 4" (T.count "then" asText) . TA.count [TA.ascii| "then" |] $ asAsciiText
@@ -40,13 +40,13 @@ runSherlockTests asText asAsciiText =
             assertEqual "Count 2" (T.count "of" asText) . TA.count [TA.ascii| "of" |] $ asAsciiText
             assertEqual "Count 1" (T.count "Z" asText) . TA.count [TA.ascii| "Z" |] $ asAsciiText
             assertEqual "Count 1, dense" (T.count "e" asText) . TA.count [TA.ascii| "e" |] $ asAsciiText
-            assertEqual "Count, no match" (T.count "Azathoth" asText) . TA.count [TA.ascii| "Azathoth" |] $ asAsciiText,
-          bench "Count, AsciiText" . nf (TA.count [TA.ascii| "Sherlock" |]) $ asAsciiText,
-          bcompare "$NF == \"Count, AsciiText\"" . bench "Count, Text" . nf (T.count "Sherlock") $ asText,
-          bench "Count, dense, AsciiText" . nf (TA.count [TA.ascii| "American" |]) $ asAsciiText,
-          bcompare "$NF == \"Count, dense, AsciiText\"" . bench "Count, dense, Text" . nf (T.count "American") $ asText,
-          bench "Count, near-miss, AsciiText" . nf (TA.count [TA.ascii| "Shevlock" |]) $ asAsciiText,
-          bcompare "$NF == \"Count, near-miss, AsciiText\"" . bench "Count, near-miss, Text" . nf (T.count "Shevlock") $ asText,
+            assertEqual "Count, no match" (T.count "Azathothi" asText) . TA.count [TA.ascii| "Azathothi" |] $ asAsciiText,
+          bench "Count, AsciiText" . nf (TA.count [TA.ascii| "extensive" |]) $ asAsciiText,
+          bcompare "$NF == \"Count, AsciiText\"" . bench "Count, Text" . nf (T.count "extensive") $ asText,
+          bench "Count, dense, AsciiText" . nf (TA.count [TA.ascii| "condition" |]) $ asAsciiText,
+          bcompare "$NF == \"Count, dense, AsciiText\"" . bench "Count, dense, Text" . nf (T.count "condition") $ asText,
+          bench "Count, near-miss, AsciiText" . nf (TA.count [TA.ascii| "extenzive" |]) $ asAsciiText,
+          bcompare "$NF == \"Count, near-miss, AsciiText\"" . bench "Count, near-miss, Text" . nf (T.count "extenzive") $ asText,
           bench "Count, long, AsciiText" . nf (TA.count [TA.ascii| "incomprehensible" |]) $ asAsciiText,
           bcompare "$NF == \"Count, long, AsciiText\"" . bench "Count, long, Text" . nf (T.count "incomprehensible") $ asText,
           bench "Count 5, AsciiText" . nf (TA.count [TA.ascii| "which" |]) $ asAsciiText,

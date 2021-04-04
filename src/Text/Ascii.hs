@@ -215,6 +215,7 @@ import GHC.Exts
     indexWord8ArrayAsWord64#,
     pdep64#,
     writeWord8ArrayAsWord64#,
+    (+#),
   )
 import GHC.Word (Word64 (W64#))
 import Optics.Indexed.Core (itraverse_)
@@ -2071,8 +2072,29 @@ count (AT nba noff nlen) (AT hba@(ByteArray hba#) hoff hlen)
   | P.min nlen hlen == 0 = 0
   | nlen > hlen = 0
   | nlen == 1 = goBig1 0 hoff
+  | nlen == 2 = goBig2 0 hoff
+  | nlen == 3 = goBig3 0 hoff
+  | nlen == 4 = goBig4 0 hoff
   | otherwise = goBig 0 hoff
   where
+    goBig4 :: Int -> Int -> Int
+    goBig4 acc i
+      | i >= limBlock = goSmall acc i
+      | otherwise =
+        let final = computeBlock4Match i
+         in goBig4 (acc + popCount final) (i + 8)
+    goBig3 :: Int -> Int -> Int
+    goBig3 acc i
+      | i >= limBlock = goSmall acc i
+      | otherwise =
+        let final = computeBlock3Match i
+         in goBig3 (acc + popCount final) (i + 8)
+    goBig2 :: Int -> Int -> Int
+    goBig2 acc i
+      | i >= limBlock = goSmall acc i
+      | otherwise =
+        let final = computeBlock2Match i
+         in goBig2 (acc + popCount final) (i + 8)
     goBig1 :: Int -> Int -> Int
     goBig1 acc i
       | i >= limBlock = goSmall1 acc i
@@ -2119,6 +2141,12 @@ count (AT nba noff nlen) (AT hba@(ByteArray hba#) hoff hlen)
     w8 = indexByteArray nba noff
     blockFirst :: Word64
     blockFirst = broadcast w8
+    blockSecond :: Word64
+    blockSecond = broadcast . indexByteArray nba $ noff + 1
+    blockThird :: Word64
+    blockThird = broadcast . indexByteArray nba $ noff + 2
+    blockFourth :: Word64
+    blockFourth = broadcast . indexByteArray nba $ noff + 3
     select0 :: Word64 -> Int
     select0 (W64# mask) =
       let !(W64# src) = 1
@@ -2138,43 +2166,31 @@ count (AT nba noff nlen) (AT hba@(ByteArray hba#) hoff hlen)
       let w = W64# (indexWord8ArrayAsWord64# hba# i#)
           input = w `xor` blockFirst
        in complement ((input + loOrderMask) .|. loOrderMask)
-
-{-
-    go :: Int -> Int -> Int
-    go acc i
-      | i < limBlock =
-        let final = computeBlockMatch i
-         in if final == zeroBits
-              then go acc (i + 8)
-              else
-                let off = countLeadingZeros final `P.quot` 8
-                 in case compareByteArrays hba (i + off) nba noff nlen of
-                      P.EQ -> go (acc + 1) (i + nlen + off)
-                      _ -> go acc (i + off + 1)
-      | otherwise = go2 acc i
-    go2 :: Int -> Int -> Int
-    go2 acc i
-      | i > lim = acc
-      | otherwise =
-        if indexByteArray hba i /= w8
-          then go2 acc (i + 1)
-          else case compareByteArrays hba i nba noff nlen of
-            P.EQ -> go2 (acc + 1) (i + nlen)
-            _ -> go2 acc (i + 1)
-    computeBlockMatch :: Int -> Word64
-    computeBlockMatch (I# i#) =
-      let w = W64# (indexWord8ArrayAsWord64# hba# i#)
-          input = w `xor` blockFirst
+    computeBlock2Match :: Int -> Word64
+    computeBlock2Match (I# i#) =
+      let wStart = W64# (indexWord8ArrayAsWord64# hba# i#)
+          wEnd = W64# (indexWord8ArrayAsWord64# hba# (i# +# 1#))
+          input = (wStart `xor` blockFirst) .|. (wEnd `xor` blockSecond)
        in complement ((input + loOrderMask) .|. loOrderMask)
-    w8 :: Word8
-    w8 = indexByteArray nba noff
-    blockFirst :: Word64
-    blockFirst = broadcast w8
-    lim :: Int
-    lim = hlen + hoff - nlen
-    limBlock :: Int
-    limBlock = lim - 7
--}
+    computeBlock3Match :: Int -> Word64
+    computeBlock3Match (I# i#) =
+      let w1 = W64# (indexWord8ArrayAsWord64# hba# i#)
+          w2 = W64# (indexWord8ArrayAsWord64# hba# (i# +# 1#))
+          w3 = W64# (indexWord8ArrayAsWord64# hba# (i# +# 2#))
+          input = (w1 `xor` blockFirst) .|. (w2 `xor` blockSecond) .|. (w3 `xor` blockThird)
+       in complement ((input + loOrderMask) .|. loOrderMask)
+    computeBlock4Match :: Int -> Word64
+    computeBlock4Match (I# i#) =
+      let w1 = W64# (indexWord8ArrayAsWord64# hba# i#)
+          w2 = W64# (indexWord8ArrayAsWord64# hba# (i# +# 1#))
+          w3 = W64# (indexWord8ArrayAsWord64# hba# (i# +# 2#))
+          w4 = W64# (indexWord8ArrayAsWord64# hba# (i# +# 3#))
+          input =
+            (w1 `xor` blockFirst)
+              .|. (w2 `xor` blockSecond)
+              .|. (w3 `xor` blockThird)
+              .|. (w4 `xor` blockFourth)
+       in complement ((input + loOrderMask) .|. loOrderMask)
 
 -- Zipping
 
