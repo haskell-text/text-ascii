@@ -66,11 +66,12 @@ We check on the following platforms:
 ## But is it good at the performance things?
 
 We have some benchmarks you can run, along with a baseline, in `bench`. Our
-baseline is captured with the following settings:
+baseline is captured with the following sets of settings:
 
-```
---ghc-options=-O0 --benchmark-options='--stdev=1 --csv=bench/string-search-o0.csv --timeout=200s +RTS -T'
-```
+* ``--ghc-options=-O0 --benchmark-options='--csv=bench/o0.csv --stdev=1 --timeout=200s +RTS -T'``
+* ``--ghc-options=-O2 --benchmark-options='--csv=bench/o2.csv --stdev=1
+  --timeout=200s +RTS -T'``
+
 
 Currently , we only benchmark string matching against `text`. You can find our
 source data in `bench-data`.

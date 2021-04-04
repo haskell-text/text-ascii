@@ -2137,6 +2137,7 @@ count (AT nba noff nlen) (AT hba@(ByteArray hba#) hoff hlen)
       let w = W64# (indexWord8ArrayAsWord64# hba# i#)
           input = w `xor` blockFirst
        in complement ((input + loOrderMask) .|. loOrderMask)
+    computeMulaMatch :: Int -> Word64
     computeMulaMatch (I# i#) =
       let wStart = W64# (indexWord8ArrayAsWord64# hba# i#)
           !(I# off#) = leastSimilarIx
@@ -2438,75 +2439,146 @@ isSpace (AsciiChar w8)
 
 indices :: ByteArray -> Int -> Int -> ByteArray -> Int -> Int -> [Int]
 indices nba noff nlen hba@(ByteArray hba#) hoff hlen
-  | nlen == 0 = []
+  | P.min nlen hlen == 0 = []
   | nlen > hlen = []
-  | nlen == 1 = do
-    let w8 :: Word8 = indexByteArray nba noff
-    let d :: Int = hlen `P.quot` 8
-    L.concatMap (wordStep1 w8) [hoff, hoff + 8 .. hoff + (8 * d - 1)]
-      <> byteStep1 w8 (hoff + 8 * d)
-  | otherwise =
-    L.concatMap wordStep [hoff, hoff + 8 .. hoff + hlen - nlen + 1]
-      <> byteStep (hoff + hlen - nlen + 1) (hoff + 8 * ((hlen - nlen) `P.quot` 8))
+  | nlen == 1 = goBig1 hoff
+  | leastSimilarIx == nlen = goRun . findFirstMatch $ hoff
+  | otherwise = goBig hoff
   where
+    findFirstMatch :: Int -> Int
+    findFirstMatch i
+      | i < hlen - 8 =
+        let final = computeBlockMatch i
+         in if final == zeroBits
+              then findFirstMatch (i + 8)
+              else i + (countTrailingZeros final `shiftR` 3)
+      | i >= hlen = hlen
+      | indexByteArray hba i == w8 = i
+      | otherwise = findFirstMatch (i + 1)
+    goRun :: Int -> [Int]
+    goRun i
+      | i > lim = []
+      | indexByteArray hba (i + nlen - 1) /= w8 = goRun . findFirstMatch $ i + nlen
+      | otherwise = case compareByteArrays hba i nba noff nlen of
+        P.EQ -> i : (goRun . findFirstMatch $ i + nlen)
+        _ -> goRun . findFirstMatch $ i + 1
+    goBig :: Int -> [Int]
+    goBig i
+      | i >= limBlock = goSmall i
+      | otherwise =
+        let final = computeMulaMatch i
+            off = select0 final
+            last = P.fromIntegral . indexByteArray @Word8 hba $ i + nlen - 1 + off
+         in if final == zeroBits
+              then goBig $ i + off + indexSmallArray lastOcc last
+              else case compareByteArrays hba (i + off) nba noff nlen of
+                P.EQ -> i : goBig (i + nlen + off)
+                _ -> goBig $ i + off + indexSmallArray lastOcc last
+    goBig1 :: Int -> [Int]
+    goBig1 i
+      | i >= limBlock = goSmall1 i
+      | otherwise =
+        let final = computeBlockMatch i
+         in case popCount final of
+              0 -> goBig1 (i + 8)
+              1 -> i + select final 0 : goBig1 (i + 8)
+              2 -> i + select final 0 : i + select final 1 : goBig1 (i + 8)
+              3 ->
+                i + select final 0 : i + select final 1 : i + select final 2 : goBig1 (i + 8)
+              4 ->
+                i + select final 0 :
+                i + select final 1 :
+                i + select final 2 :
+                i + select final 3 :
+                goBig1 (i + 8)
+              5 ->
+                i + select final 0 :
+                i + select final 1 :
+                i + select final 2 :
+                i + select final 3 :
+                i + select final 4 :
+                goBig1 (i + 8)
+              6 ->
+                i + select final 0 :
+                i + select final 1 :
+                i + select final 2 :
+                i + select final 3 :
+                i + select final 4 :
+                i + select final 5 :
+                goBig1 (i + 8)
+              7 ->
+                i + select final 0 :
+                i + select final 1 :
+                i + select final 2 :
+                i + select final 3 :
+                i + select final 4 :
+                i + select final 5 :
+                i + select final 6 :
+                goBig1 (i + 8)
+              _ -> i : i + 1 : i + 2 : i + 3 : i + 4 : i + 5 : i + 6 : i + 7 : goBig1 (i + 8)
+    goSmall1 :: Int -> [Int]
+    goSmall1 i
+      | i > lim = []
+      | otherwise =
+        if indexByteArray hba i /= w8
+          then goSmall1 (i + 1)
+          else i : goSmall1 (i + 1)
+    goSmall :: Int -> [Int]
+    goSmall i
+      | i > lim = []
+      | otherwise =
+        let last = P.fromIntegral . indexByteArray @Word8 hba $ i + nlen - 1
+         in if indexByteArray hba i /= w8
+              then goSmall $ i + indexSmallArray lastOcc last
+              else case compareByteArrays hba i nba noff nlen of
+                P.EQ -> i : goSmall (i + nlen)
+                _ -> goSmall $ i + indexSmallArray lastOcc last
+    limBlock :: Int
+    limBlock = lim - 7
+    lim :: Int
+    lim = hlen + hoff - nlen
+    computeBlockMatch :: Int -> Word64
+    computeBlockMatch (I# i#) =
+      let w = W64# (indexWord8ArrayAsWord64# hba# i#)
+          input = w `xor` blockFirst
+       in complement $ (input + loOrderMask) .|. loOrderMask
+    computeMulaMatch :: Int -> Word64
+    computeMulaMatch (I# i#) =
+      let wStart = W64# (indexWord8ArrayAsWord64# hba# i#)
+          !(I# off#) = leastSimilarIx
+          wEnd = W64# (indexWord8ArrayAsWord64# hba# (i# +# off#))
+          input = (wStart `xor` blockFirst) .|. (wEnd `xor` blockEnd)
+       in complement ((input + loOrderMask) .|. loOrderMask)
+    w8 :: Word8
+    w8 = indexByteArray nba noff
     blockFirst :: Word64
-    blockFirst = broadcast first
-    first :: Word8
-    first = indexByteArray nba noff
-    blockLast :: Word64
-    blockLast = broadcast . indexByteArray nba $ noff + nlen - 1
-    wordStep1 :: Word8 -> Int -> [Int]
-    wordStep1 w8 wordI@(I# wordI#) = do
-      let w :: Word64 = W64# (indexWord8ArrayAsWord64# hba# wordI#)
-      let input :: Word64 = w `xor` broadcast w8
-      let final :: Word64 = complement ((input + loOrderMask) .|. loOrderMask)
-      case popCount final of
-        0 -> []
-        1 -> [wordI + (countTrailingZeros final `P.quot` 8)]
-        2 -> P.fmap ((wordI +) . select final) [0, 1]
-        3 -> P.fmap ((wordI +) . select final) [0 .. 2]
-        4 -> P.fmap ((wordI +) . select final) [0 .. 3]
-        5 -> P.fmap ((wordI +) . select final) [0 .. 4]
-        6 -> P.fmap ((wordI +) . select final) [0 .. 5]
-        7 -> P.fmap ((wordI +) . select final) [0 .. 6]
-        _ -> [wordI .. wordI + 7]
-    wordStep :: Int -> [Int]
-    wordStep wordI@(I# wordI#) = do
-      let w :: Word64 = W64# (indexWord8ArrayAsWord64# hba# wordI#)
-      let !(I# jumpI#) = wordI + nlen - 1
-      let w' :: Word64 = W64# (indexWord8ArrayAsWord64# hba# jumpI#)
-      let input :: Word64 = (w `xor` blockFirst) .|. (w' `xor` blockLast)
-      let final :: Word64 = complement ((input + loOrderMask) .|. loOrderMask)
-      case popCount final of
-        0 -> []
-        1 -> do
-          let off = countTrailingZeros final `P.quot` 8
-          case compareByteArrays hba (wordI + off) nba noff nlen of
-            P.EQ -> [wordI + off]
-            _ -> []
-        pop -> do
-          let selected = P.fmap (select final) [0 .. pop - 1]
-          selectGo wordI final selected
-    selectGo :: Int -> Word64 -> [Int] -> [Int]
-    selectGo wordI final = \case
-      [] -> []
-      (sI : sIs) -> case compareByteArrays hba (wordI + sI) nba noff nlen of
-        P.EQ -> wordI + sI : (selectGo wordI final . skip sI $ sIs)
-        _ -> selectGo wordI final sIs
-    byteStep1 :: Word8 -> Int -> [Int]
-    byteStep1 w8 byteI
-      | byteI == hlen = []
-      | indexByteArray hba byteI == w8 = byteI : byteStep1 w8 (byteI + 1)
-      | otherwise = byteStep1 w8 (byteI + 1)
-    byteStep :: Int -> Int -> [Int]
-    byteStep lim byteI
-      | byteI > lim = []
-      | indexByteArray hba byteI /= first = byteStep lim (byteI + 1)
-      | otherwise = case compareByteArrays hba byteI nba noff nlen of
-        P.EQ -> byteI : byteStep lim (byteI + nlen)
-        _ -> byteStep lim (byteI + 1)
-    skip :: Int -> [Int] -> [Int]
-    skip i = P.dropWhile (\j -> j - i < nlen)
+    blockFirst = broadcast w8
+    blockEnd :: Word64
+    blockEnd = broadcast . indexByteArray nba $ noff + leastSimilarIx
+    leastSimilarIx :: Int
+    leastSimilarIx =
+      case L.maximumBy (comparing P.snd) . P.fmap distFromFirst $ [1 .. nlen - 1] of
+        (_, 0) -> nlen
+        (i, _) -> i
+    distFromFirst :: Int -> (Int, Int)
+    distFromFirst i = (i, popCount . (w8 `xor`) . indexByteArray nba $ noff + i)
+    lastOcc :: SmallArray Int
+    lastOcc = runST $ do
+      sa <- newSmallArray 128 nlen
+      traverse_ (doLastOcc sa) [0 .. P.max (nlen - 2) 0]
+      unsafeFreezeSmallArray sa
+    doLastOcc :: SmallMutableArray s Int -> Int -> ST s ()
+    doLastOcc sa i = do
+      let c :: Int = P.fromIntegral . indexByteArray @Word8 nba $ noff + i
+      writeSmallArray sa c (nlen - 1 - i)
+    select0 :: Word64 -> Int
+    select0 w@(W64# mask) =
+      if w == zeroBits
+        then 7
+        else
+          let !(W64# src) = 1
+              res = W64# (ctz64# (pdep64# src mask))
+           in P.fromIntegral (res `shiftR` 3)
 
 broadcast :: Word8 -> Word64
 broadcast w8 = P.fromIntegral w8 * (0x0101010101010101 :: Word64)
