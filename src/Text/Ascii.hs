@@ -2082,7 +2082,7 @@ count (AT nba noff nlen) (AT hba@(ByteArray hba#) hoff hlen)
         let final = computeBlockMatch i
          in if final == zeroBits
               then findFirstMatch (i + 8)
-              else i + select0 final
+              else i + (countTrailingZeros final `shiftR` 3)
       | i >= hlen = hlen
       | indexByteArray hba i == w8 = i
       | otherwise = findFirstMatch (i + 1)
