@@ -2098,16 +2098,13 @@ count (AT nba noff nlen) (AT hba@(ByteArray hba#) hoff hlen)
       | i >= limBlock = goSmall acc i
       | otherwise =
         let final = computeMulaMatch i
+            off = select0 final
+            last = P.fromIntegral . indexByteArray @Word8 hba $ i + nlen - 1 + off
          in if final == zeroBits
-              then
-                let last = P.fromIntegral . indexByteArray @Word8 hba $ i + nlen - 1 + 7
-                 in goBig acc $ i + 7 + indexSmallArray lastOcc last
-              else
-                let off = select0 final
-                    last = P.fromIntegral . indexByteArray @Word8 hba $ i + nlen - 1 + off
-                 in case compareByteArrays hba (i + off) nba noff nlen of
-                      P.EQ -> goBig (acc + 1) (i + nlen + off)
-                      _ -> goBig acc (i + off + indexSmallArray lastOcc last)
+              then goBig acc $ i + off + indexSmallArray lastOcc last
+              else case compareByteArrays hba (i + off) nba noff nlen of
+                P.EQ -> goBig (acc + 1) $ i + nlen + off
+                _ -> goBig acc $ i + off + indexSmallArray lastOcc last
     goBig1 :: Int -> Int -> Int
     goBig1 acc i
       | i >= limBlock = goSmall1 acc i
@@ -2167,10 +2164,13 @@ count (AT nba noff nlen) (AT hba@(ByteArray hba#) hoff hlen)
       let c :: Int = P.fromIntegral . indexByteArray @Word8 nba $ noff + i
       writeSmallArray sa c (nlen - 1 - i)
     select0 :: Word64 -> Int
-    select0 (W64# mask) =
-      let !(W64# src) = 1
-          res = W64# (ctz64# (pdep64# src mask))
-       in P.fromIntegral (res `shiftR` 3)
+    select0 w@(W64# mask) =
+      if w == zeroBits
+        then 7
+        else
+          let !(W64# src) = 1
+              res = W64# (ctz64# (pdep64# src mask))
+           in P.fromIntegral (res `shiftR` 3)
     distFromFirst :: Int -> (Int, Int)
     distFromFirst i = (i, popCount . (w8 `xor`) . indexByteArray nba $ noff + i)
 
