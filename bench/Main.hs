@@ -35,7 +35,8 @@ runAllTests :: Text -> AsciiText -> IO ()
 runAllTests asText asAsciiText =
   defaultMain
     [ bgroup "Basic" . basicTests asText $ asAsciiText,
-      bgroup "Counting" . countingTests asText $ asAsciiText
+      bgroup "Counting" . countingTests asText $ asAsciiText,
+      bgroup "Break on" . breakOnTests asText $ asAsciiText
     ]
 
 basicTests :: Text -> AsciiText -> [Benchmark]
@@ -88,6 +89,20 @@ countingTests asText asAsciiText =
     bcompare "$NF == \"Count 1, dense, AsciiText\"" . bench "Count 1, dense, Text" . nf (T.count "e") $ asText,
     bench "Count, no match, AsciiText" . nf (TA.count [TA.ascii| "Azathoth" |]) $ asAsciiText,
     bcompare "$NF == \"Count, no match, AsciiText\"" . bench "Count, no match, Text" . nf (T.count "Azathoth") $ asText
+  ]
+
+breakOnTests :: Text -> AsciiText -> [Benchmark]
+breakOnTests asText asAsciiText =
+  [ testCase "Correctness" $ do
+      assertEqual "Break on" asAsciiText . uncurry (<>) . TA.breakOn [TA.ascii| "extensive" |] $ asAsciiText
+      assertEqual "Break on, dense" asAsciiText . uncurry (<>) . TA.breakOn [TA.ascii| "condition" |] $ asAsciiText
+      assertEqual "Break on, no match" asAsciiText . uncurry (<>) . TA.breakOn [TA.ascii| "Azathothi" |] $ asAsciiText,
+    bench "Break on, AsciiText" . nf (TA.breakOn [TA.ascii| "extensive" |]) $ asAsciiText,
+    bcompare "$NF == \"Break on, AsciiText\"" . bench "Break on, Text" . nf (T.breakOn "extensive") $ asText,
+    bench "Break on, dense, AsciiText" . nf (TA.breakOn [TA.ascii| "condition" |]) $ asAsciiText,
+    bcompare "$NF == \"Break on, dense, AsciiText\"" . bench "Break on, dense, Text" . nf (T.breakOn "condition") $ asText,
+    bench "Break on, no match, AsciiText" . nf (TA.breakOn [TA.ascii| "Azathothi" |]) $ asAsciiText,
+    bcompare "$NF == \"Break on, no match, AsciiText\"" . bench "Break on, no match, Text" . nf (T.breakOn "Azathothi") $ asText
   ]
 
 {-
