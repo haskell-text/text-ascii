@@ -96,11 +96,29 @@ breakOnTests asText asAsciiText =
   [ testCase "Correctness" $ do
       assertEqual "Break on" asAsciiText . uncurry (<>) . TA.breakOn [TA.ascii| "extensive" |] $ asAsciiText
       assertEqual "Break on, dense" asAsciiText . uncurry (<>) . TA.breakOn [TA.ascii| "condition" |] $ asAsciiText
+      assertEqual "Break on, near-miss" asAsciiText . uncurry (<>) . TA.breakOn [TA.ascii| "extenzive" |] $ asAsciiText
+      assertEqual "Break on, long" asAsciiText . uncurry (<>) . TA.breakOn [TA.ascii| "incomprehensible" |] $ asAsciiText
+      assertEqual "Break on, run" asAsciiText . uncurry (<>) . TA.breakOn [TA.ascii| "---------" |] $ asAsciiText
+      assertEqual "Break on, run, short" asAsciiText . uncurry (<>) . TA.breakOn [TA.ascii| "..." |] $ asAsciiText
+      assertEqual "Break on 1" asAsciiText . uncurry (<>) . TA.breakOn [TA.ascii| "Z" |] $ asAsciiText
+      assertEqual "Break on 1, dense" asAsciiText . uncurry (<>) . TA.breakOn [TA.ascii| "e" |] $ asAsciiText
       assertEqual "Break on, no match" asAsciiText . uncurry (<>) . TA.breakOn [TA.ascii| "Azathothi" |] $ asAsciiText,
     bench "Break on, AsciiText" . nf (TA.breakOn [TA.ascii| "extensive" |]) $ asAsciiText,
     bcompare "$NF == \"Break on, AsciiText\"" . bench "Break on, Text" . nf (T.breakOn "extensive") $ asText,
     bench "Break on, dense, AsciiText" . nf (TA.breakOn [TA.ascii| "condition" |]) $ asAsciiText,
     bcompare "$NF == \"Break on, dense, AsciiText\"" . bench "Break on, dense, Text" . nf (T.breakOn "condition") $ asText,
+    bench "Break on, near-miss, AsciiText" . nf (TA.breakOn [TA.ascii| "extenzive" |]) $ asAsciiText,
+    bcompare "$NF == \"Break on, near-miss, AsciiText\"" . bench "Break on, near-miss, Text" . nf (T.breakOn "extenzive") $ asText,
+    bench "Break on, long, AsciiText" . nf (TA.breakOn [TA.ascii| "incomprehensible" |]) $ asAsciiText,
+    bcompare "$NF == \"Break on, long, AsciiText\"" . bench "Break on, long, Text" . nf (T.breakOn "incomprehensible") $ asText,
+    bench "Break on, run, AsciiText" . nf (TA.breakOn [TA.ascii| "---------" |]) $ asAsciiText,
+    bcompare "$NF == \"Break on, run, AsciiText\"" . bench "Break on, run, Text" . nf (T.breakOn "---------") $ asText,
+    bench "Break on, run, short, AsciiText" . nf (TA.breakOn [TA.ascii| "..." |]) $ asAsciiText,
+    bcompare "$NF == \"Break on, run, short, AsciiText\"" . bench "Break on, run, short, Text" . nf (T.breakOn "...") $ asText,
+    bench "Break on 1, AsciiText" . nf (TA.breakOn [TA.ascii| "S" |]) $ asAsciiText,
+    bcompare "$NF == \"Break on 1, AsciiText\"" . bench "Break on 1, Text" . nf (T.breakOn "S") $ asText,
+    bench "Break on 1, dense, AsciiText" . nf (TA.breakOn [TA.ascii| "e" |]) $ asAsciiText,
+    bcompare "$NF == \"Break on 1, dense, AsciiText\"" . bench "Break on 1, dense, Text" . nf (T.breakOn "e") $ asText,
     bench "Break on, no match, AsciiText" . nf (TA.breakOn [TA.ascii| "Azathothi" |]) $ asAsciiText,
     bcompare "$NF == \"Break on, no match, AsciiText\"" . bench "Break on, no match, Text" . nf (T.breakOn "Azathothi") $ asText
   ]
