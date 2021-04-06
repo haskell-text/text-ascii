@@ -254,7 +254,7 @@ import qualified Prelude as P
 -- >>> :set -XOverloadedStrings
 -- >>> :set -XTypeFamilies
 -- >>> import Text.Ascii
--- >>> import Text.Ascii.Char (char, upcase, AsciiCase (Lower), caseOf)
+-- >>> import Text.Ascii.Char (char, upcase, AsciiCase (Lower), caseOf, AsciiChar)
 -- >>> import Prelude ((.), ($), (<>), (==), (<), (/=), (-), max, even, String)
 -- >>> import qualified Prelude as Prelude
 -- >>> import Data.Maybe (Maybe (Just), fromMaybe)
@@ -2411,8 +2411,8 @@ _AsAscii = prism' encodeAscii decodeAsciiMay
 -- Just "nyan"
 -- >>> preview _AsBytesAscii ([0xff, 0xff] :: [Word8])
 -- Nothing
--- >>> review _AsBytesAscii [ascii| "nyan" |]
--- []
+-- >>> review _AsBytesAscii [ascii| "nyan" |] :: [Word8]
+-- [110,121,97,110]
 --
 -- @since 2.0.0
 _AsBytesAscii :: (IsList s, Item s ~ Word8) => Prism' s AsciiText
@@ -2423,7 +2423,7 @@ _AsBytesAscii = prism' toBytes decodeBytesAsciiMay
 --
 -- >>> view _PackedAscii [[char| 'n' |], [char| 'y' |], [char| 'a' |], [char| 'n' |]]
 -- "nyan"
--- >>> review _PackedAscii [ascii| "nyan" |]
+-- >>> review _PackedAscii [ascii| "nyan" |] :: [AsciiChar]
 -- ['0x6e','0x79','0x61','0x6e']
 --
 -- @since 2.0.0

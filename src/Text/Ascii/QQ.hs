@@ -29,14 +29,13 @@ import GHC.Exts (IsList (fromListN))
 import Language.Haskell.TH.Quote (QuasiQuoter (QuasiQuoter))
 import Language.Haskell.TH.Syntax
   ( Dec,
-    Exp (AppE, ConE, ListE, LitE, VarE),
+    Exp (AppE, ConE, LitE),
     Lit (IntegerL),
     Pat (ConP, LitP),
     Q,
     Type,
-    lift,
   )
-import Text.Ascii.Internal (AsciiChar (AsciiChar))
+import Text.Ascii.Internal (AsciiChar (AsciiChar), AsciiText (AT))
 import Text.Megaparsec
   ( Parsec,
     between,
@@ -96,10 +95,14 @@ asciiQQ :: String -> Q Exp
 asciiQQ input = case parse (between open close go) "" input of
   Left err -> fail . errorBundlePretty $ err
   Right result -> do
+    let len = length result
+    let src = fmap (fromIntegral @_ @Word8 . ord) result
+    {-
     len <- lift . length $ result
     let src = fmap (fromIntegral @_ @Word8 . ord) result
     src' <- ListE <$> traverse (fmap (AppE (ConE 'AsciiChar)) . lift) src
-    pure . AppE (AppE (VarE 'fromListN) len) $ src'
+    -}
+    [e|AT (fromListN len src) 0 len|]
     {-
         let src =
               ListE
