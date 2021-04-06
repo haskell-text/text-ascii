@@ -1160,11 +1160,97 @@ splitAt i at@(AT ba off len)
 --
 -- @since 1.0.1
 breakOn :: AsciiText -> AsciiText -> (AsciiText, AsciiText)
-breakOn needle@(AT nba noff nlen) haystack@(AT hba hoff hlen)
-  | length needle == 0 = (empty, haystack)
+breakOn (AT nba noff nlen) haystack@(AT hba@(ByteArray hba#) hoff@(I# hoff#) hlen@(I# hlen#))
+  | nlen == 0 = (empty, haystack)
+  | go == hoff + hlen = (haystack, empty)
+  | otherwise = splitAt go haystack
+  where
+    go :: Int
+    go
+      | nlen == 1 = findFirstMatch hoff
+      | leastSimilarIx == nlen = goRun . findFirstMatch $ hoff
+      | otherwise = goBig . findFirstMatch $ hoff
+    w8 :: Word8
+    w8 = indexByteArray nba noff
+    findFirstMatch :: Int -> Int
+    findFirstMatch (I# i#) =
+      let !(W8# w#) = w8
+          w8# = word2Int# w#
+       in I# (cFindFirstMatch hba# hoff# hlen# w8# i#)
+    goRun :: Int -> Int
+    goRun i
+      | i > lim = hoff + hlen
+      | indexByteArray hba (i + nlen - 1) /= w8 = goRun . findFirstMatch $ i + nlen
+      | otherwise = case compareByteArrays hba i nba noff nlen of
+        P.EQ -> i
+        _ -> goRun . findFirstMatch $ i + 1
+    goBig :: Int -> Int
+    goBig i
+      | i >= limBlock = goSmall i
+      | otherwise =
+        let final = computeMulaMatch i
+            off = select0 final
+            last = P.fromIntegral . indexByteArray @Word8 hba $ i + nlen - 1 + off
+         in if final == zeroBits
+              then goBig $ i + off + indexSmallArray lastOcc last
+              else case compareByteArrays hba (i + off) nba noff nlen of
+                P.EQ -> i
+                _ -> goBig $ i + off + indexSmallArray lastOcc last
+    goSmall :: Int -> Int
+    goSmall i
+      | i > lim = hoff + hlen
+      | otherwise =
+        let last = P.fromIntegral . indexByteArray @Word8 hba $ i + nlen - 1
+         in if indexByteArray hba i /= w8
+              then goSmall $ i + indexSmallArray lastOcc last
+              else case compareByteArrays hba i nba noff nlen of
+                P.EQ -> i
+                _ -> goSmall $ i + indexSmallArray lastOcc last
+    lim :: Int
+    lim = hlen + hoff - nlen
+    limBlock :: Int
+    limBlock = lim - 7
+    leastSimilarIx :: Int
+    leastSimilarIx =
+      case L.maximumBy (comparing P.snd) . P.fmap distFromFirst $ [1 .. nlen - 1] of
+        (_, 0) -> nlen
+        (i, _) -> i
+    distFromFirst :: Int -> (Int, Int)
+    distFromFirst i = (i, popCount . (w8 `xor`) . indexByteArray nba $ noff + i)
+    computeMulaMatch :: Int -> Word64
+    computeMulaMatch (I# i#) =
+      let wStart = W64# (indexWord8ArrayAsWord64# hba# i#)
+          !(I# off#) = leastSimilarIx
+          wEnd = W64# (indexWord8ArrayAsWord64# hba# (i# +# off#))
+          input = (wStart `xor` blockFirst) .|. (wEnd `xor` blockEnd)
+       in complement ((input + loOrderMask) .|. loOrderMask)
+    select0 :: Word64 -> Int
+    select0 w@(W64# mask) =
+      if w == zeroBits
+        then 7
+        else
+          let !(W64# src) = 1
+              res = W64# (ctz64# (pdep64# src mask))
+           in P.fromIntegral (res `shiftR` 3)
+    lastOcc :: SmallArray Int
+    lastOcc = runST $ do
+      sa <- newSmallArray 128 nlen
+      traverse_ (doLastOcc sa) [0 .. P.max (nlen - 2) 0]
+      unsafeFreezeSmallArray sa
+    doLastOcc :: SmallMutableArray s Int -> Int -> ST s ()
+    doLastOcc sa i = do
+      let c :: Int = P.fromIntegral . indexByteArray @Word8 nba $ noff + i
+      writeSmallArray sa c (nlen - 1 - i)
+    blockFirst :: Word64
+    blockFirst = broadcast w8
+    blockEnd :: Word64
+    blockEnd = broadcast . indexByteArray nba $ noff + leastSimilarIx
+
+{-
   | otherwise = case indices nba noff nlen hba hoff hlen of
     [] -> (haystack, empty)
     ix : _ -> splitAt ix haystack
+-}
 
 -- | @breakOnEnd needle haystack@, given a @needle@ of length \(n\) and a
 -- @haystack@ of length \(h\), attempts to find the last instance of @needle@ in

@@ -1,47 +1,47 @@
 Name,Mean (ps),2*Stdev (ps),Allocated,Copied
-"All.Basic.Reverse, AsciiText",1057856657,14960776,6488746,1146
-"All.Basic.Reverse, Text",54670094262,333481754,324405761,412968
-"All.Counting.Count, AsciiText",2646823979,17490112,2707,3
-"All.Counting.Count, Text",121094652800,2365902022,830836914,899343
-"All.Counting.Count, dense, AsciiText",2729618940,39353772,2700,4
-"All.Counting.Count, dense, Text",113244200150,421414178,785902658,856709
-"All.Counting.Count, near-miss, AsciiText",2559211928,33896224,2521,4
-"All.Counting.Count, near-miss, Text",110408439100,1486217338,784208307,804016
-"All.Counting.Count, long, AsciiText",2198178082,6685696,3727,6
-"All.Counting.Count, long, Text",6547796571,50233690,2842,5
-"All.Counting.Count, run, AsciiText",364254649,1930632,1356,1
-"All.Counting.Count, run, Text",1939724537,23550462,3255,6
-"All.Counting.Count, run, short, AsciiText",1124943310,18305366,0,0
-"All.Counting.Count, run, short, Text",5456689300,97202042,143600,187
-"All.Counting.Count 5, AsciiText",3317637421,60583954,0,0
-"All.Counting.Count 5, Text",5734085828,38506096,385135,399
-"All.Counting.Count 4, AsciiText",4387817501,10001656,1713,3
-"All.Counting.Count 4, Text",10328815821,164856500,97904,115
-"All.Counting.Count 3, AsciiText",4392112640,7303778,1185,2
-"All.Counting.Count 3, Text",9065074918,141140544,84440,84
-"All.Counting.Count 2, AsciiText",4807141634,57197304,0,0
-"All.Counting.Count 2, Text",8633381488,26532648,3456559,3154
-"All.Counting.Count 1, AsciiText",2113923703,5963496,0,0
-"All.Counting.Count 1, Text",8674422212,125587416,0,0
-"All.Counting.Count 1, dense, AsciiText",2139856531,41625386,0,0
-"All.Counting.Count 1, dense, Text",13712950243,216971600,0,0
-"All.Counting.Count, no match, AsciiText",2592807973,43885166,1790,3
-"All.Counting.Count, no match, Text",5119556452,16486242,0,0
-"All.Break on.Break on, AsciiText",223226910,2501250,2978,2
-"All.Break on.Break on, Text",11293001481,124775360,79491428,60565
-"All.Break on.Break on, dense, AsciiText",23646897,165686,2990,2
-"All.Break on.Break on, dense, Text",1087846264,18711960,7759976,6151
-"All.Break on.Break on, near-miss, AsciiText",2256164339,38870974,2827,2
-"All.Break on.Break on, near-miss, Text",114853454400,1128013782,784299941,569805
-"All.Break on.Break on, long, AsciiText",1114183564,13372040,4268,3
-"All.Break on.Break on, long, Text",3458568162,52758640,0,0
-"All.Break on.Break on, run, AsciiText",87171729,170858,1705,1
-"All.Break on.Break on, run, Text",492351686,3992384,378,0
-"All.Break on.Break on, run, short, AsciiText",108778856,858260,706,0
-"All.Break on.Break on, run, short, Text",451297942,25813670,378,0
-"All.Break on.Break on 1, AsciiText",32676,388,295,0
-"All.Break on.Break on 1, Text",84122,418,319,0
-"All.Break on.Break on 1, dense, AsciiText",34606,408,335,0
-"All.Break on.Break on 1, dense, Text",25815,516,319,0
-"All.Break on.Break on, no match, AsciiText",1940363820,28875428,0,0
-"All.Break on.Break on, no match, Text",4650172721,77390074,0,0
+"All.Basic.Reverse, AsciiText",1177044167,21154916,6488745,1146
+"All.Basic.Reverse, Text",59891826862,545965176,324405761,412976
+"All.Counting.Count, AsciiText",2693395390,34733174,1436,3
+"All.Counting.Count, Text",113769269350,1441780630,830810694,899471
+"All.Counting.Count, dense, AsciiText",2743121021,43547402,0,0
+"All.Counting.Count, dense, Text",111504869700,1011641202,785902902,858874
+"All.Counting.Count, near-miss, AsciiText",2459270420,30483070,2706,4
+"All.Counting.Count, near-miss, Text",104381793140,1325247822,784355247,803586
+"All.Counting.Count, long, AsciiText",2202268701,32898434,3730,5
+"All.Counting.Count, long, Text",6441181988,18874496,3045,4
+"All.Counting.Count, run, AsciiText",344762370,802680,1356,1
+"All.Counting.Count, run, Text",1988433353,25218778,3255,6
+"All.Counting.Count, run, short, AsciiText",1062320581,5521632,200,0
+"All.Counting.Count, run, short, Text",5546030115,68563132,155024,167
+"All.Counting.Count 5, AsciiText",3290958495,17429364,1733,3
+"All.Counting.Count 5, Text",5847351588,17360800,385135,399
+"All.Counting.Count 4, AsciiText",4374414700,81560536,0,0
+"All.Counting.Count 4, Text",10284918462,169008284,97904,106
+"All.Counting.Count 3, AsciiText",4472093928,54262604,0,0
+"All.Counting.Count 3, Text",9304906703,136022268,83216,85
+"All.Counting.Count 2, AsciiText",4511308534,57533636,0,0
+"All.Counting.Count 2, Text",8439357096,101971798,3450031,3164
+"All.Counting.Count 1, AsciiText",2472871120,37319752,0,0
+"All.Counting.Count 1, Text",12019835267,189541720,0,0
+"All.Counting.Count 1, dense, AsciiText",2453909591,4939582,50,0
+"All.Counting.Count 1, dense, Text",15203913681,290179096,0,0
+"All.Counting.Count, no match, AsciiText",2542198850,45848568,1430,2
+"All.Counting.Count, no match, Text",5034177878,21538282,0,0
+"All.Break on.Break on, AsciiText",216508932,3919096,2731,2
+"All.Break on.Break on, Text",10488103406,98297548,79493266,60560
+"All.Break on.Break on, dense, AsciiText",22816378,115726,2736,2
+"All.Break on.Break on, dense, Text",1027761050,11860558,7760452,6212
+"All.Break on.Break on, near-miss, AsciiText",2164043625,40560836,2697,2
+"All.Break on.Break on, near-miss, Text",99748950100,1592041492,784313225,569842
+"All.Break on.Break on, long, AsciiText",1055845028,7292028,3940,3
+"All.Break on.Break on, long, Text",3155347662,48036692,0,0
+"All.Break on.Break on, run, AsciiText",83889164,520144,1485,1
+"All.Break on.Break on, run, Text",457430720,6479546,378,0
+"All.Break on.Break on, run, short, AsciiText",107310179,659382,489,0
+"All.Break on.Break on, run, short, Text",490490541,4733892,201,0
+"All.Break on.Break on 1, AsciiText",20291,92,119,0
+"All.Break on.Break on 1, Text",70561,384,319,0
+"All.Break on.Break on 1, dense, AsciiText",19368,298,119,0
+"All.Break on.Break on 1, dense, Text",26418,362,319,0
+"All.Break on.Break on, no match, AsciiText",2400492866,13165790,2704,3
+"All.Break on.Break on, no match, Text",5507001940,69804004,0,0
