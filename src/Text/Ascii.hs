@@ -1,5 +1,6 @@
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE DerivingVia #-}
+{-# LANGUAGE ForeignFunctionInterface #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MagicHash #-}
 {-# LANGUAGE QuasiQuotes #-}
@@ -7,6 +8,7 @@
 {-# LANGUAGE Trustworthy #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE UnliftedFFITypes #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 
 -- |
@@ -169,7 +171,6 @@ import Data.Bifunctor (bimap)
 import Data.Bits
   ( bit,
     complement,
-    countTrailingZeros,
     popCount,
     shiftR,
     xor,
@@ -207,18 +208,21 @@ import Data.Primitive.SmallArray
     writeSmallArray,
   )
 import Data.Semigroup (stimes)
-import Data.Word (Word8)
 import GHC.Exts
-  ( Int (I#),
+  ( ByteArray#,
+    Int (I#),
+    Int#,
     IsList (Item, fromList, fromListN, toList),
+    Word#,
     byteSwap64#,
     ctz64#,
     indexWord8ArrayAsWord64#,
     pdep64#,
+    word2Int#,
     writeWord8ArrayAsWord64#,
     (+#),
   )
-import GHC.Word (Word64 (W64#))
+import GHC.Word (Word64 (W64#), Word8 (W8#))
 import Optics.Indexed.Core (itraverse_)
 import Optics.Iso (Iso', iso)
 import Optics.IxFold (IxFold, ifoldVL)
@@ -2069,23 +2073,18 @@ findIndex f = F.foldl' go Nothing . P.zip [0 ..] . toList
 --
 -- @since 1.0.1
 count :: AsciiText -> AsciiText -> Int
-count (AT nba noff nlen) (AT hba@(ByteArray hba#) hoff hlen)
+count (AT nba noff nlen) (AT hba@(ByteArray hba#) hoff@(I# hoff#) hlen@(I# hlen#))
   | P.min nlen hlen == 0 = 0
   | nlen > hlen = 0
   | nlen == 1 = goBig1 0 hoff
   | leastSimilarIx == nlen = goRun 0 . findFirstMatch $ hoff
-  | otherwise = goBig 0 hoff
+  | otherwise = goBig 0 . findFirstMatch $ hoff
   where
     findFirstMatch :: Int -> Int
-    findFirstMatch i
-      | i < hlen - 8 =
-        let final = computeBlockMatch i
-         in if final == zeroBits
-              then findFirstMatch (i + 8)
-              else i + (countTrailingZeros final `shiftR` 3)
-      | i >= hlen = hlen
-      | indexByteArray hba i == w8 = i
-      | otherwise = findFirstMatch (i + 1)
+    findFirstMatch (I# i#) =
+      let !(W8# w#) = w8
+          w8# = word2Int# w#
+       in I# (cFindFirstMatch hba# hoff# hlen# w8# i#)
     goRun :: Int -> Int -> Int
     goRun acc i
       | i > lim = acc
@@ -2106,11 +2105,11 @@ count (AT nba noff nlen) (AT hba@(ByteArray hba#) hoff hlen)
                 P.EQ -> goBig (acc + 1) $ i + nlen + off
                 _ -> goBig acc $ i + off + indexSmallArray lastOcc last
     goBig1 :: Int -> Int -> Int
-    goBig1 acc i
-      | i >= limBlock = goSmall1 acc i
+    goBig1 acc i@(I# i#)
+      | i >= limBlockBig = goSmall1 acc i
       | otherwise =
-        let final = computeBlockMatch i
-         in goBig1 (acc + popCount final) (i + 8)
+        let !(W64# blockFirst#) = blockFirst
+         in goBig1 (acc + I# (cCountBlockMatch hba# blockFirst# i#)) (i + 64)
     goSmall1 :: Int -> Int -> Int
     goSmall1 acc i
       | i > lim = acc
@@ -2132,11 +2131,8 @@ count (AT nba noff nlen) (AT hba@(ByteArray hba#) hoff hlen)
     lim = hlen + hoff - nlen
     limBlock :: Int
     limBlock = lim - 7
-    computeBlockMatch :: Int -> Word64
-    computeBlockMatch (I# i#) =
-      let w = W64# (indexWord8ArrayAsWord64# hba# i#)
-          input = w `xor` blockFirst
-       in complement ((input + loOrderMask) .|. loOrderMask)
+    limBlockBig :: Int
+    limBlockBig = lim - 63
     computeMulaMatch :: Int -> Word64
     computeMulaMatch (I# i#) =
       let wStart = W64# (indexWord8ArrayAsWord64# hba# i#)
@@ -2431,6 +2427,12 @@ copy (AT ba off len) = runST $ do
 
 -- Helpers
 
+foreign import ccall unsafe "find_first_match"
+  cFindFirstMatch :: ByteArray# -> Int# -> Int# -> Int# -> Int# -> Int#
+
+foreign import ccall unsafe "count_block_match"
+  cCountBlockMatch :: ByteArray# -> Word# -> Int# -> Int#
+
 isSpace :: AsciiChar -> Bool
 isSpace (AsciiChar w8)
   | w8 == 32 = True
@@ -2438,23 +2440,18 @@ isSpace (AsciiChar w8)
   | otherwise = False
 
 indices :: ByteArray -> Int -> Int -> ByteArray -> Int -> Int -> [Int]
-indices nba noff nlen hba@(ByteArray hba#) hoff hlen
+indices nba noff nlen hba@(ByteArray hba#) hoff@(I# hoff#) hlen@(I# hlen#)
   | P.min nlen hlen == 0 = []
   | nlen > hlen = []
-  | nlen == 1 = goBig1 hoff
+  | nlen == 1 = goBig1 . findFirstMatch $ hoff
   | leastSimilarIx == nlen = goRun . findFirstMatch $ hoff
-  | otherwise = goBig hoff
+  | otherwise = goBig . findFirstMatch $ hoff
   where
     findFirstMatch :: Int -> Int
-    findFirstMatch i
-      | i < hlen - 8 =
-        let final = computeBlockMatch i
-         in if final == zeroBits
-              then findFirstMatch (i + 8)
-              else i + (countTrailingZeros final `shiftR` 3)
-      | i >= hlen = hlen
-      | indexByteArray hba i == w8 = i
-      | otherwise = findFirstMatch (i + 1)
+    findFirstMatch (I# i#) =
+      let !(W8# w#) = w8
+          w8# = word2Int# w#
+       in I# (cFindFirstMatch hba# hoff# hlen# w8# i#)
     goRun :: Int -> [Int]
     goRun i
       | i > lim = []
