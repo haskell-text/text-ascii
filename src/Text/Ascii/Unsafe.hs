@@ -224,7 +224,8 @@ instance Read (Unsafe AsciiText) where
 -- >>> :set -XQuasiQuotes
 -- >>> import Text.Ascii.Unsafe
 -- >>> import Text.Ascii (ascii)
--- >>> import Prelude ((.), ($))
+-- >>> import Prelude ((.), ($), String)
+-- >>> import Data.Word (Word8)
 
 -- | Yield the first character of the text.
 --
@@ -448,7 +449,7 @@ decodeAscii = Unsafe . fromList . fromMaybe err . traverse go . toList
 -- /Requirements:/ Every byte of the input must be between 0x00 and 0x7F
 -- inclusive.
 --
--- >>> decodeAsciiBytes ([0x6e, 0x79, 0x61, 0x6e] :: [Word8])
+-- >>> decodeBytesAscii ([0x6e, 0x79, 0x61, 0x6e] :: [Word8])
 -- "nyan"
 --
 -- /Complexity:/ \(\Theta(n)\)

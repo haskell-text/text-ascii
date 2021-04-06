@@ -120,7 +120,7 @@ module Text.Ascii
     stripPrefix,
     stripSuffix,
     stripInfix,
-    -- commonPrefixes,
+    commonPrefixes,
 
     -- * Searching
     filter,
@@ -252,12 +252,12 @@ import qualified Prelude as P
 -- >>> :set -XNoImplicitPrelude
 -- >>> :set -XQuasiQuotes
 -- >>> :set -XOverloadedStrings
+-- >>> :set -XTypeFamilies
 -- >>> import Text.Ascii
 -- >>> import Text.Ascii.Char (char, upcase, AsciiCase (Lower), caseOf)
--- >>> import Prelude ((.), ($), (<>), (==), (<), (/=), (-), max, even)
+-- >>> import Prelude ((.), ($), (<>), (==), (<), (/=), (-), max, even, String)
 -- >>> import qualified Prelude as Prelude
 -- >>> import Data.Maybe (Maybe (Just), fromMaybe)
--- >>> import qualified Data.ByteString as BS
 -- >>> import Optics.AffineFold (preview)
 -- >>> import Optics.Review (review)
 -- >>> import Optics.Getter (view)
@@ -265,6 +265,7 @@ import qualified Prelude as P
 -- >>> import Optics.IxSetter (iover)
 -- >>> import Data.Bool (bool)
 -- >>> import Optics.IxFold (itoListOf)
+-- >>> import Data.Word (Word8)
 
 -- | The empty text.
 --
@@ -1283,6 +1284,8 @@ break f = bimap fromList fromList . P.break f . toList
 
 -- | @span p t@ is equivalent to @('takeWhile' p t, 'dropWhile' p t)@.
 --
+-- >>> span ([char| 'c' |] ==) [ascii| "c" |]
+-- ("c","")
 -- >>> span ([char| 'c' |] ==) [ascii| "catboy goes nyan" |]
 -- ("c","atboy goes nyan")
 --
@@ -1360,7 +1363,7 @@ inits (AT ba off len) = P.fmap (AT ba off) [0 .. len]
 --
 -- @since 1.0.0
 tails :: AsciiText -> [AsciiText]
-tails (AT ba off len) = P.zipWith (AT ba) [off .. off + len - 1] [len, len - 1 .. 0]
+tails (AT ba off len) = P.zipWith (AT ba) [off .. off + len] [len, len - 1 .. 0]
 
 -- Breaking into many substrings
 
@@ -1456,17 +1459,24 @@ splitOn needle@(AT nba noff nlen) haystack@(AT hba hoff hlen)
 --
 -- @since 1.0.0
 split :: (AsciiChar -> Bool) -> AsciiText -> [AsciiText]
-split f = P.fmap fromList . go . toList
+split f at
+  | length at == 0 = []
+  | otherwise = go at
   where
-    go :: [AsciiChar] -> [[AsciiChar]]
-    go = \case
-      [] -> [[]]
-      (x : xs) ->
-        if f x
-          then []
-          else case go xs of
-            [] -> P.fail "Impossible split"
-            (y : ys) -> (x : y) : ys
+    go :: AsciiText -> [AsciiText]
+    go at'@(AT _ _ len)
+      | len == 0 = [at']
+      | otherwise = case span (P.not . f) at' of
+        (h, t) -> case uncons t of
+          Nothing -> [h]
+          Just (_, t') -> h : go t'
+
+{-
+  case span (P.not . f) at of
+    (h, t) -> case uncons t of
+      Nothing -> [h]
+      Just (_, t') -> h : split f t'
+-}
 
 -- | Splits a text into chunks of the specified length. Equivalent to repeatedly
 -- 'take'ing the specified length until exhaustion. The last item in the result
@@ -1830,7 +1840,6 @@ stripInfix (AT nba noff nlen) haystack@(AT hba hoff hlen)
     [] -> Nothing
     (ix : _) -> Just (take ix haystack, drop (ix + nlen) haystack)
 
-{-
 -- | Find the longest non-empty common prefix of the arguments and return it,
 -- along with the remaining suffixes of both arguments. If the arguments lack a
 -- common, non-empty prefix, returns 'Nothing'.
@@ -1852,8 +1861,21 @@ stripInfix (AT nba noff nlen) haystack@(AT hba hoff hlen)
 commonPrefixes :: AsciiText -> AsciiText -> Maybe (AsciiText, AsciiText, AsciiText)
 commonPrefixes (AT ba off len) (AT ba' off' len')
   | P.min len len' == 0 = Nothing
-  | otherwise = _
+  | otherwise = go off off'
+  where
+    go :: Int -> Int -> Maybe (AsciiText, AsciiText, AsciiText)
+    go i i'
+      | i < lim && i' < lim' && indexByteArray @Word8 ba i == indexByteArray ba' i' =
+        go (i + 1) (i' + 1)
+      | i > off =
+        Just (AT ba off i, AT ba (off + i) (len - i), AT ba' (off' + i') (len' - i'))
+      | otherwise = Nothing
+    lim :: Int
+    lim = off + len
+    lim' :: Int
+    lim' = off' + len'
 
+{-
 commonPrefixes (AsciiText t1) (AsciiText t2) =
   go2 <$> F.foldl' go Nothing [0 .. P.min (BS.length t1) (BS.length t2) - 1]
   where
@@ -2252,7 +2274,7 @@ zipWith f t1 t2 = unfoldr go (t1, t2)
 -- >>> decodeAscii ("catboy" :: String)
 -- Right "catboy"
 -- >>> decodeAscii ("😺😺😺😺😺" :: String)
--- Left (0, '\128570')
+-- Left (0,'\128570')
 --
 -- /Complexity:/ \(\Theta(n)\)
 --
@@ -2300,9 +2322,9 @@ decodeBytesAscii = P.fmap fromList . P.traverse go . P.zip [0 ..] . toList
 
 -- | As 'decodeBytesAscii', but throwing away the error information.
 --
--- >>> decodeBytesAscii ([0x6e, 0x79, 0x61, 0x6e] :: [Word8])
+-- >>> decodeBytesAsciiMay ([0x6e, 0x79, 0x61, 0x6e] :: [Word8])
 -- Just "nyan"
--- >>> decodeBytesAscii ([0x80] :: [Word8])
+-- >>> decodeBytesAsciiMay ([0x80] :: [Word8])
 -- Nothing
 --
 -- /Complexity:/ \(\Theta(n)\)
@@ -2338,9 +2360,9 @@ encodeAscii =
 -- >>> toBytes empty :: [Word8]
 -- []
 -- >>> toBytes . singleton $ [char| 'w' |] :: [Word8]
--- []
--- >>> toBytes [ascii| "nyan"] :: [Word8]
--- []
+-- [119]
+-- >>> toBytes [ascii| "nyan" |] :: [Word8]
+-- [110,121,97,110]
 --
 -- /Complexity:/ \(\Theta(n)\)
 --
@@ -2443,7 +2465,7 @@ bytes = ifoldVL (\f at -> itraverse_ f . coerce @[AsciiChar] @[Word8] . toList $
 -- longer needed.
 --
 -- >>> copy [ascii| "I am a catboy." |]
--- " I am a catboy."
+-- "I am a catboy."
 --
 -- /Complexity:/ \(\Theta(n)\)
 --

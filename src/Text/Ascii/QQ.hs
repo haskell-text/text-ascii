@@ -1,5 +1,6 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE Trustworthy #-}
+{-# LANGUAGE TypeApplications #-}
 
 -- |
 -- Module: Text.Ascii.QQ
@@ -23,6 +24,7 @@ import Data.Char
   )
 import Data.Functor (void)
 import Data.Void (Void)
+import Data.Word (Word8)
 import GHC.Exts (IsList (fromListN))
 import Language.Haskell.TH.Quote (QuasiQuoter (QuasiQuoter))
 import Language.Haskell.TH.Syntax
@@ -95,11 +97,15 @@ asciiQQ input = case parse (between open close go) "" input of
   Left err -> fail . errorBundlePretty $ err
   Right result -> do
     len <- lift . length $ result
-    let src =
-          ListE
-            . fmap (AppE (ConE 'AsciiChar) . LitE . IntegerL . fromIntegral . ord)
-            $ result
-    pure . AppE (AppE (VarE 'fromListN) len) $ src
+    let src = fmap (fromIntegral @_ @Word8 . ord) result
+    src' <- ListE <$> traverse (fmap (AppE (ConE 'AsciiChar)) . lift) src
+    pure . AppE (AppE (VarE 'fromListN) len) $ src'
+    {-
+        let src =
+              ListE
+                . fmap (AppE (ConE 'AsciiChar) . LitE . IntegerL . fromIntegral . ord)
+                $ result
+        pure . AppE (AppE (VarE 'fromListN) len) $ src -}
   where
     open :: Parsec Void String ()
     open = space *> (void . single $ '"')

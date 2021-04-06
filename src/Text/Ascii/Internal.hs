@@ -171,8 +171,7 @@ instance NFData AsciiText where
 -- | @since 1.0.0
 instance Show AsciiText where
   {-# INLINEABLE show #-}
-  show (AT ba off len) =
-    ['"'] <> fmap go [off .. off + len - 1] <> ['"']
+  show (AT ba off len) = show . fmap go $ [off .. off + len - 1]
     where
       go :: Int -> Char
       go i = chr . fromIntegral . indexByteArray @Word8 ba $ i
@@ -206,7 +205,7 @@ instance Semigroup AsciiText where
     let n' = fromIntegral n
     let totalLen = n' * len
     mba <- newByteArray totalLen
-    go mba n' 0
+    go mba totalLen 0
     frozen <- unsafeFreezeByteArray mba
     pure . AT frozen 0 $ totalLen
     where
