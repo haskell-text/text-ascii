@@ -43,6 +43,7 @@ library
 
   c-sources:
     cbits/count-block-match.c
+    cbits/find-first-block.c
     cbits/find-first-match.c
 
   ghc-options:
