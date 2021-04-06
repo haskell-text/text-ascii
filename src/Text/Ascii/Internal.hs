@@ -1,8 +1,11 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE MultiWayIf #-}
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE PolyKinds #-}
+{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE Trustworthy #-}
 {-# LANGUAGE TypeApplications #-}
@@ -26,6 +29,7 @@ module Text.Ascii.Internal where
 import Control.DeepSeq (NFData (rnf))
 import Control.Monad (foldM_, when)
 import Control.Monad.ST (ST, runST)
+import Data.Bifunctor (bimap)
 import Data.CaseInsensitive (FoldCase (foldCase))
 import Data.Char (chr, isAscii)
 import Data.Coerce (coerce)
@@ -58,6 +62,35 @@ import Test.QuickCheck.Arbitrary
     liftShrink,
   )
 import Test.QuickCheck.Gen (chooseBoundedIntegral)
+import Text.Megaparsec
+  ( Pos,
+    PosState (PosState),
+    SourcePos (SourcePos),
+    mkPos,
+    pos1,
+    pstateInput,
+    pstateLinePrefix,
+    pstateOffset,
+    pstateSourcePos,
+    pstateTabWidth,
+    sourceLine,
+    unPos,
+  )
+import Text.Megaparsec.Stream
+  ( Stream
+      ( Token,
+        Tokens,
+        chunkLength,
+        chunkToTokens,
+        take1_,
+        takeN_,
+        takeWhile_,
+        tokenToChunk,
+        tokensToChunk
+      ),
+    TraversableStream (reachOffset),
+    VisualStream (showTokens),
+  )
 import Type.Reflection (Typeable)
 
 -- | Represents valid ASCII characters, which are bytes from @0x00@ to @0x7f@.
@@ -295,41 +328,152 @@ instance Hashable AsciiText where
   {-# INLINEABLE hashWithSalt #-}
   hashWithSalt salt = hashWithSalt salt . toList
 
-{-
 -- | @since 1.0.1
 instance Stream AsciiText where
   type Token AsciiText = AsciiChar
   type Tokens AsciiText = AsciiText
   {-# INLINEABLE tokenToChunk #-}
-  tokenToChunk _ = coerce BS.singleton
-  {-# INLINEABLE tokensToChunk #-}
-  tokensToChunk _ = fromList
+  tokenToChunk _ (AsciiChar w8) = AT (fromListN 1 [w8]) 0 1
   {-# INLINEABLE chunkToTokens #-}
   chunkToTokens _ = toList
+  {-# INLINEABLE tokensToChunk #-}
+  tokensToChunk _ = fromList
   {-# INLINEABLE chunkLength #-}
-  chunkLength _ = coerce BS.length
+  chunkLength _ (AT _ _ len) = len
   {-# INLINEABLE take1_ #-}
-  take1_ = coerce BS.uncons
+  take1_ (AT ba off len)
+    | len == 0 = Nothing
+    | otherwise =
+      Just (AsciiChar . indexByteArray ba $ off, AT ba (off + 1) $ len - 1)
   {-# INLINEABLE takeN_ #-}
-  takeN_ n at@(AsciiText bs)
-    | n <= 0 = Just (coerce BS.empty, at)
-    | BS.length bs == 0 = Nothing
-    | otherwise = Just . coerce . BS.splitAt n $ bs
+  takeN_ n at@(AT ba off len)
+    | n <= 0 = Just (mempty, at)
+    | len == 0 = Nothing
+    | n < len = Just (AT ba off len, AT ba (off + n) (len - n))
+    | otherwise = Just (at, mempty)
   {-# INLINEABLE takeWhile_ #-}
-  takeWhile_ = coerce BS.span
+  takeWhile_ f = bimap fromList fromList . span f . toList
 
 -- | @since 1.0.1
 instance VisualStream AsciiText where
   {-# INLINEABLE showTokens #-}
-  showTokens _ = fmap (chr . fromIntegral) . coerce @_ @[Word8] . NE.toList
+  showTokens _ = fmap (chr . fromIntegral) . coerce @_ @[Word8] . toList
 
 -- | @since 1.0.1
 instance TraversableStream AsciiText where
   {-# INLINEABLE reachOffset #-}
-  reachOffset o ps = coerce (reachOffset o ps)
--}
+  reachOffset =
+    reachOffset' splitAt' foldl'' toString' toChar' (AsciiChar 0x0a, AsciiChar 0x09)
+    where
+      splitAt' :: Int -> AsciiText -> (AsciiText, AsciiText)
+      splitAt' i at@(AT ba off len)
+        | i <= 0 = (mempty, at)
+        | i < len = (AT ba off i, AT ba (off + i) (len - i))
+        | otherwise = (at, mempty)
+      foldl'' :: forall b. (b -> AsciiChar -> b) -> b -> AsciiText -> b
+      foldl'' f x = foldl' f x . toList
+      toString' :: AsciiText -> String
+      toString' = fmap toChar' . toList
+      toChar' :: AsciiChar -> Char
+      toChar' (AsChar c) = c
 
 -- Helpers
+
+-- Internal helper state combining a difference string and an unboxed source
+-- position. Borrowed from megaparsec.
+data St = St SourcePos ShowS
+
+-- A helper definition to facilitate defining 'reachOffset' for various
+-- stream types. Borrowed from megaparsec.
+reachOffset' ::
+  forall s.
+  Stream s =>
+  -- | How to split input stream at given offset
+  (Int -> s -> (Tokens s, s)) ->
+  -- | How to fold over input stream
+  (forall b. (b -> Token s -> b) -> b -> Tokens s -> b) ->
+  -- | How to convert chunk of input stream into a 'String'
+  (Tokens s -> String) ->
+  -- | How to convert a token into a 'Char'
+  (Token s -> Char) ->
+  -- | Newline token and tab token
+  (Token s, Token s) ->
+  -- | Offset to reach
+  Int ->
+  -- | Initial 'PosState' to use
+  PosState s ->
+  -- | Line at which 'SourcePos' is located, updated 'PosState'
+  (Maybe String, PosState s)
+reachOffset'
+  splitAt'
+  foldl''
+  fromToks
+  fromTok
+  (newlineTok, tabTok)
+  o
+  PosState {..} =
+    ( Just $ case expandTab pstateTabWidth
+        . addPrefix
+        . f
+        . fromToks
+        . fst
+        $ takeWhile_ (/= newlineTok) post of
+        "" -> "<empty line>"
+        xs -> xs,
+      PosState
+        { pstateInput = post,
+          pstateOffset = max pstateOffset o,
+          pstateSourcePos = spos,
+          pstateTabWidth = pstateTabWidth,
+          pstateLinePrefix =
+            if sameLine
+              then -- NOTE We don't use difference lists here because it's
+              -- desirable for 'PosState' to be an instance of 'Eq' and
+              -- 'Show'. So we just do appending here. Fortunately several
+              -- parse errors on the same line should be relatively rare.
+                pstateLinePrefix ++ f ""
+              else f ""
+        }
+    )
+    where
+      addPrefix xs =
+        if sameLine
+          then pstateLinePrefix ++ xs
+          else xs
+      sameLine = sourceLine spos == sourceLine pstateSourcePos
+      (pre, post) = splitAt' (o - pstateOffset) pstateInput
+      St spos f = foldl'' go (St pstateSourcePos id) pre
+      go (St apos g) ch =
+        let SourcePos n l c = apos
+            c' = unPos c
+            w = unPos pstateTabWidth
+         in if
+                | ch == newlineTok ->
+                  St
+                    (SourcePos n (l <> pos1) pos1)
+                    id
+                | ch == tabTok ->
+                  St
+                    (SourcePos n l (mkPos $ c' + w - ((c' - 1) `rem` w)))
+                    (g . (fromTok ch :))
+                | otherwise ->
+                  St
+                    (SourcePos n l (c <> pos1))
+                    (g . (fromTok ch :))
+{-# INLINE reachOffset' #-}
+
+-- Replace tab characters with given number of spaces. Borrowed from megaparsec.
+expandTab ::
+  Pos ->
+  String ->
+  String
+expandTab w' = go 0
+  where
+    go 0 [] = []
+    go 0 ('\t' : xs) = go w xs
+    go 0 (x : xs) = x : go 0 xs
+    go n xs = ' ' : go (n - 1) xs
+    w = unPos w'
 
 isJustAscii :: Word8 -> Maybe Char
 isJustAscii w8 =
