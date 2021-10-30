@@ -1,5 +1,10 @@
 # Revision history for text-ascii
 
+## 1.0 -- 2021-10-31
+
+* Support GHC 9.2.
+* Remove support for GHCs below 8.10.
+
 ## 1.0.1 -- 2021-03-02
 
 * Support GHC 9.
