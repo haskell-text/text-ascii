@@ -4,6 +4,7 @@
 
 * Support GHC 9.2.
 * Remove support for GHCs below 8.10.
+* Add `eitherFromText` and `eitherFromByteString` for better conversion errors.
 
 ## 1.0.1 -- 2021-03-02
 
