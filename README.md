@@ -50,18 +50,20 @@ version changes.
 
 ## What does this run on?
 
-Currently, our CI checks the following versions of GHC:
+We support the latest three releases of GHC. Currently, these are:
 
-* 8.6.5
-* 8.8.4
 * 8.10.4
 * 9.0.1
+* 9.2.1
 
 We check on the following platforms:
 
 * Windows
 * Linux
 * MacOS
+
+Currently, there is no support for GHC 9.2.1 with Windows in our CI. We will fix
+this as soon as possible.
 
 ## What can I do with this?
 

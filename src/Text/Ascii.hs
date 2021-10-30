@@ -1932,8 +1932,8 @@ fromText t = case T.find (not . isAscii) t of
   Nothing -> pure . AsciiText . encodeUtf8 $ t
   Just _ -> Nothing
 
--- | Try and convert a 'Text' into an 'AsciiText'. Gives @'Left' c@ if the 'Text'
--- contains a 'Char' @c@ that lacks an ASCII representation.
+-- | Try and convert a 'Text' into an 'AsciiText'. Gives @'Prelude.Left' c@ if the 'Text'
+-- contains a 'Prelude.Char' @c@ that lacks an ASCII representation.
 --
 -- >>> eitherFromText "catboy"
 -- Right "catboy"
@@ -1965,7 +1965,7 @@ fromByteString bs = case BS.find (> 127) bs of
   Nothing -> pure . AsciiText $ bs
   Just _ -> Nothing
 
--- | Try and convert a 'ByteString' into an 'AsciiText'. Gives @'Left' w8@ if
+-- | Try and convert a 'ByteString' into an 'AsciiText'. Gives @'Prelude.Left' w8@ if
 -- the 'ByteString' contains a byte @w8@ that is outside the ASCII range (that
 -- is, from 0 to 127 inclusive).
 --
