@@ -71,10 +71,10 @@ import Prelude hiding
 -- | A wrapper for a type, designating that partial type class methods or other
 -- functions are available for it.
 --
--- The role of 'Unsafe''s type argument is set to nominal. Among other things,
--- it means that this type can't be coerced or derived through. This ensures
--- clear indication when (and to what extent) non-total operations occur in any
--- code using them.
+-- We set the role of the type argument of 'Unsafe' to nominal. Among other
+-- things, it means that this type can't be coerced or derived through. This
+-- ensures clear indication when (and to what extent) non-total operations occur
+-- in any code using them.
 --
 -- @since 1.0.1
 newtype Unsafe (a :: Type) = Unsafe {safe :: a}
