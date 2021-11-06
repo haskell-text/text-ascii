@@ -1,6 +1,13 @@
 # Revision history for text-ascii
 
-## 1.0 -- 2021-10-31
+## 1.2 -- 2021-11-07
+
+* Add instances of `Factorial`, `FactorialMonoid`, `LeftCancellative`,
+  `LeftGCDMonoid`, `LeftReductive`, `MonoidNull`, `OverlappingGCDMonoid`,
+  `PositiveMonoid`, `RightCancellative`, `RightGCDMonoid`, `RightReductive` and
+  `StableFactorial` for `AsciiText`.
+
+## 1.1 -- 2021-10-31
 
 * Support GHC 9.2.
 * Remove support for GHCs below 8.10.
