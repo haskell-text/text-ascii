@@ -131,29 +131,29 @@ newtype AsciiText = AsciiText ByteString
       Monoid,
       -- | @since 1.0.0
       Show,
-      -- | @since 1.1.1
+      -- | @since 1.2
       Factorial,
-      -- | @since 1.1.1
+      -- | @since 1.2
       FactorialMonoid,
-      -- | @since 1.1.1
+      -- | @since 1.2
       LeftCancellative,
-      -- | @since 1.1.1
+      -- | @since 1.2
       LeftGCDMonoid,
-      -- | @since 1.1.1
+      -- | @since 1.2
       LeftReductive,
-      -- | @since 1.1.1
+      -- | @since 1.2
       MonoidNull,
-      -- | @since 1.1.1
+      -- | @since 1.2
       OverlappingGCDMonoid,
-      -- | @since 1.1.1
+      -- | @since 1.2
       PositiveMonoid,
-      -- | @since 1.1.1
+      -- | @since 1.2
       RightCancellative,
-      -- | @since 1.1.1
+      -- | @since 1.2
       RightGCDMonoid,
-      -- | @since 1.1.1
+      -- | @since 1.2
       RightReductive,
-      -- | @since 1.1.1
+      -- | @since 1.2
       StableFactorial
     )
     via ByteString
