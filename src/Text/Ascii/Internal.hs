@@ -27,6 +27,12 @@ import Data.Char (chr, isAscii)
 import Data.Coerce (coerce)
 import Data.Hashable (Hashable)
 import qualified Data.List.NonEmpty as NE
+import Data.Monoid.Factorial (FactorialMonoid)
+import Data.Monoid.GCD (LeftGCDMonoid, RightGCDMonoid)
+import Data.Monoid.Monus (OverlappingGCDMonoid)
+import Data.Monoid.Null (MonoidNull, PositiveMonoid)
+import Data.Semigroup.Cancellative (LeftCancellative, LeftReductive, RightCancellative, RightReductive)
+import Data.Semigroup.Factorial (Factorial, StableFactorial)
 import Data.Word (Word8)
 import GHC.Exts (IsList (Item, fromList, fromListN, toList))
 import Numeric (showHex)
@@ -124,7 +130,31 @@ newtype AsciiText = AsciiText ByteString
       -- | @since 1.0.0
       Monoid,
       -- | @since 1.0.0
-      Show
+      Show,
+      -- | @since 1.2
+      Factorial,
+      -- | @since 1.2
+      FactorialMonoid,
+      -- | @since 1.2
+      LeftCancellative,
+      -- | @since 1.2
+      LeftGCDMonoid,
+      -- | @since 1.2
+      LeftReductive,
+      -- | @since 1.2
+      MonoidNull,
+      -- | @since 1.2
+      OverlappingGCDMonoid,
+      -- | @since 1.2
+      PositiveMonoid,
+      -- | @since 1.2
+      RightCancellative,
+      -- | @since 1.2
+      RightGCDMonoid,
+      -- | @since 1.2
+      RightReductive,
+      -- | @since 1.2
+      StableFactorial
     )
     via ByteString
 
