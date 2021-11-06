@@ -47,6 +47,12 @@ import Data.CaseInsensitive (FoldCase)
 import Data.Coerce (coerce)
 import Data.Hashable (Hashable)
 import Data.Kind (Type)
+import Data.Monoid.Factorial (FactorialMonoid)
+import Data.Monoid.GCD (LeftGCDMonoid, RightGCDMonoid)
+import Data.Monoid.Monus (OverlappingGCDMonoid)
+import Data.Monoid.Null (MonoidNull, PositiveMonoid)
+import Data.Semigroup.Cancellative (LeftCancellative, LeftReductive, RightCancellative, RightReductive)
+import Data.Semigroup.Factorial (Factorial, StableFactorial)
 import Data.Word (Word8)
 import GHC.Exts (IsList)
 import GHC.Read (expectP, lexP, parens, readPrec)
@@ -104,7 +110,31 @@ newtype Unsafe (a :: Type) = Unsafe {safe :: a}
       -- | @since 1.0.1
       TraversableStream,
       -- | @since 1.0.1
-      Show
+      Show,
+      -- | @since 1.1.1
+      Factorial,
+      -- | @since 1.1.1
+      FactorialMonoid,
+      -- | @since 1.1.1
+      LeftCancellative,
+      -- | @since 1.1.1
+      LeftGCDMonoid,
+      -- | @since 1.1.1
+      LeftReductive,
+      -- | @since 1.1.1
+      MonoidNull,
+      -- | @since 1.1.1
+      OverlappingGCDMonoid,
+      -- | @since 1.1.1
+      PositiveMonoid,
+      -- | @since 1.1.1
+      RightCancellative,
+      -- | @since 1.1.1
+      RightGCDMonoid,
+      -- | @since 1.1.1
+      RightReductive,
+      -- | @since 1.1.1
+      StableFactorial
     )
     via a
   deriving stock
