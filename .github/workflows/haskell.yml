@@ -14,9 +14,9 @@ jobs:
         os: [ubuntu-latest, macOS-latest, windows-latest]
         cabal: ["latest"]
         ghc: ["8.10", "9.0", "9.2.1"]
-        exclude:
+        exclude: 
           - os: windows-latest
-            ghc: "9.2.1"
+            ghc: '9.2.1'
     steps:
     - uses: actions/checkout@v2
       name: Checkout base repo
@@ -34,7 +34,6 @@ jobs:
     - name: Configure main repo
       run: cabal new-configure --disable-optimization
     - name: Configure cabal-docspec
-      if: ${{ matrix.ghc != '9.2.1' }}
       working-directory: cabal-extras/cabal-docspec
       run: cabal new-configure -w ghc --disable-optimization
     - name: Freeze
