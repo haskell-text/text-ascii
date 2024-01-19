@@ -30,15 +30,15 @@ library
 
   build-depends:
     , base               >=4.17      && <5
-    , bytestring         ^>=0.12.0.2
-    , case-insensitive   ^>=1.2.1.0
-    , deepseq            ^>=1.4.8.0
-    , hashable           ^>=1.4.3.0
-    , megaparsec         ^>=9.6.1
-    , monoid-subclasses  ^>=1.2.4.1
-    , optics-core        ^>=0.4.1.1
-    , optics-extra       ^>=0.4.2.1
-    , template-haskell   >=2.19.0.0  && <3.0.0.0
+    , bytestring         ^>=0.12
+    , case-insensitive   ^>=1.2
+    , deepseq            ^>=1.5
+    , hashable           ^>=1.4
+    , megaparsec         ^>=9.6
+    , monoid-subclasses  ^>=1.2
+    , optics-core        ^>=0.4
+    , optics-extra       ^>=0.4
+    , template-haskell   >=2.19  && <3.0
     , text               ^>=2.1
 
   ghc-options:
