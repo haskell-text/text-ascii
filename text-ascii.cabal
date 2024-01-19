@@ -32,7 +32,7 @@ library
     , base               >=4.17      && <5
     , bytestring         ^>=0.12
     , case-insensitive   ^>=1.2
-    , deepseq            ^>=1.5
+    , deepseq            >=1.4.8.1
     , hashable           ^>=1.4
     , megaparsec         ^>=9.6
     , monoid-subclasses  ^>=1.2
