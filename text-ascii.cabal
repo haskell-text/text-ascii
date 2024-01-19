@@ -1,6 +1,6 @@
 cabal-version:      3.0
 name:               text-ascii
-version:            1.1
+version:            1.2.1
 synopsis:           ASCII string and character processing.
 description:
   A total-by-default, tested and documented library for
@@ -12,9 +12,9 @@ license-file:       LICENSE.md
 author:             Koz Ross
 maintainer:         koz.ross@retro-freedom.nz
 bug-reports:        https://github.com/haskell-text/text-ascii/issues
-copyright:          (C) Koz Ross 2021
+copyright:          (C) Koz Ross 2021-3
 category:           Text
-tested-with:        GHC ==8.10.5 || ==9.0.1 || ==9.2.1
+tested-with:        GHC ==9.4.8 || ==9.6.4 || ==9.8.1
 build-type:         Simple
 extra-source-files:
   CHANGELOG.md
@@ -29,21 +29,22 @@ library
     Text.Ascii.Unsafe
 
   build-depends:
-    , base              >=4.14     && <5
-    , bytestring        ^>=0.11.0.0
-    , case-insensitive  ^>=1.2.1.0
-    , deepseq           ^>=1.4.0.0
-    , hashable          ^>=1.3.0.0
-    , megaparsec        ^>=9.0.1
-    , monoid-subclasses >=1.0      && <1.2
-    , optics-core       ^>=0.4
-    , optics-extra      ^>=0.4
-    , template-haskell  >=2.16.0.0 && <3.0.0.0
-    , text              ^>=1.2.4.1
+    , base               >=4.17      && <5
+    , bytestring         ^>=0.12.0.2
+    , case-insensitive   ^>=1.2.1.0
+    , deepseq            ^>=1.4.8.0
+    , hashable           ^>=1.4.3.0
+    , megaparsec         ^>=9.6.1
+    , monoid-subclasses  ^>=1.2.4.1
+    , optics-core        ^>=0.4.1.1
+    , optics-extra       ^>=0.4.2.1
+    , template-haskell   >=2.19.0.0  && <3.0.0.0
+    , text               ^>=2.1
 
   ghc-options:
     -Wall -Wcompat -Wincomplete-record-updates
     -Wincomplete-uni-patterns -Wredundant-constraints
+    -Wmissing-deriving-strategies
 
   hs-source-dirs:   src
   default-language: Haskell2010
