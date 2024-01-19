@@ -28,7 +28,7 @@ jobs:
     steps:
     - uses: actions/checkout@v2
       name: Checkout base repo
-    - uses: haskell/actions/setup@v1
+    - uses: haskell-actions/setup@v1
       id: haskell-setup
       name: Setup Haskell
       with:
