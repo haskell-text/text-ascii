@@ -1,4 +1,4 @@
 packages: ./text-ascii.cabal
 
 package text-ascii
-  ghc-options: -Werror
+  ghc-options: -Werror -XNoSafe
