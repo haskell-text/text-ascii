@@ -34,16 +34,6 @@ jobs:
       with:
         ghc-version: ${{ matrix.ghc }}
         cabal-version: 'latest'
-    - uses: actions/checkout@v2
-      name: Get cabal-extras
-      with:
-        repository: kozross/cabal-extras
-        path: ./cabal-extras
-    - name: Configure main repo
-      run: cabal configure --disable-optimization
-    - name: Configure cabal-docspec
-      working-directory: cabal-extras/cabal-docspec
-      run: cabal configure -w ghc --disable-optimization
     - name: Cache
       uses: actions/cache@v3.3.3
       with:
@@ -52,11 +42,7 @@ jobs:
         restore-keys: ${{ runner.os }}-ghc-${{ matrix.ghc }}-
     - name: Install base dependencies
       run: cabal build --only-dependencies
-    - name: Install cabal-docspec
-      working-directory: cabal-extras/cabal-docspec
-      run: cabal install --install-method=copy --installdir=${{ runner.temp }} --overwrite-policy=always
-    - name: Build base repo
-      run: |
-        cabal build
-    - name: Run doctests
-      run: ${{ runner.temp }}/cabal-docspec --trace-process --timeout 30 --strip-comments --builddir "${{ github.workspace }}/dist-newstyle"
+    - name: Build
+      run: cabal build
+    - name: Run tests
+      run: cabal test

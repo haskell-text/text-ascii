@@ -4,7 +4,7 @@ version:            1.2.1
 synopsis:           ASCII string and character processing.
 description:
   A total-by-default, tested and documented library for
-  working with ASCII text. Low on dependencies , high on usability.
+  working with ASCII text. Low on dependencies, high on usability.
 
 homepage:           https://github.com/haskell-text/text-ascii
 license:            Apache-2.0

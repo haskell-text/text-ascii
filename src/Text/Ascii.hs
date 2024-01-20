@@ -205,8 +205,8 @@ import qualified Prelude as P
 
 -- $setup
 -- >>> :set -XNoImplicitPrelude
--- >>> :set -XQuasiQuotes
--- >>> :set -XOverloadedStrings
+-- >>> :seti -XQuasiQuotes
+-- >>> :seti -XOverloadedStrings
 -- >>> import Text.Ascii
 -- >>> import Text.Ascii.Char (char, upcase, AsciiCase (Lower), caseOf)
 -- >>> import Prelude ((.), ($), (<>), (==), (<), (/=), (-), max, even)
