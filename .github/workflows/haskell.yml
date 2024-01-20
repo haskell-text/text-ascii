@@ -18,9 +18,11 @@ jobs:
         with:
           cabal-file: text-ascii.cabal
           ubuntu: true
+          macos: true
+          windows: true
           version: 0.1.6.0
   tests:
-    name: ${{ matrix.ghc }}
+    name: ${{ matrix.ghc }} on ${{ matrix.os }}
     needs: generate-matrix
     runs-on: ${{ matrix.os }}
     strategy:
