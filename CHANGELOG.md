@@ -1,5 +1,9 @@
 # Revision history for text-ascii
 
+## 1.2.1 -- 2023-01-20
+
+* Dependency bump
+
 ## 1.2 -- 2021-11-07
 
 * Add instances of `Factorial`, `FactorialMonoid`, `LeftCancellative`,

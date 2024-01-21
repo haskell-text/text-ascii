@@ -217,7 +217,7 @@ instance Read (Unsafe AsciiText) where
 -- >>> :set -XNoImplicitPrelude
 -- >>> :set -XQuasiQuotes
 -- >>> import Text.Ascii.Unsafe
--- >>> import Text.Ascii (ascii)
+-- >>> import Text.Ascii.QQ
 -- >>> import Prelude ((.), ($))
 
 -- | Yield the first character of the text.
