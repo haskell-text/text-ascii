@@ -52,9 +52,9 @@ version changes.
 
 We support the latest three releases of GHC. Currently, these are:
 
-* 8.10
-* 9.0
-* 9.2
+* 9.4
+* 9.6
+* 9.8
 
 We check on the following platforms:
 
