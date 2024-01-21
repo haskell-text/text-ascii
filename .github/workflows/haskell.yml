@@ -28,18 +28,22 @@ jobs:
     strategy:
       matrix: ${{ fromJSON(needs.generate-matrix.outputs.matrix) }}
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
       name: Checkout base repo
-    - uses: haskell-actions/setup@v2.6.1
+    - uses: haskell-actions/setup@v2
       id: haskell-setup
       name: Setup Haskell
       with:
         ghc-version: ${{ matrix.ghc }}
         cabal-version: 'latest'
+    - name: Configure
+      run: | 
+        cabal configure --enable-tests
+        cabal freeze
     - name: Cache
       uses: actions/cache@v3.3.3
       with:
-        path: ${{ steps.setup-haskell.outputs.cabal-store }}
+        path: ${{ steps.haskell-setup.outputs.cabal-store }}
         key: ${{ runner.os }}-ghc-${{ matrix.ghc }}-cabal-${{ hashFiles('**/plan.json') }}
         restore-keys: ${{ runner.os }}-ghc-${{ matrix.ghc }}-
     - name: Install base dependencies
