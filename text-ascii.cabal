@@ -14,7 +14,7 @@ maintainer:         koz.ross@retro-freedom.nz
 bug-reports:        https://github.com/haskell-text/text-ascii/issues
 copyright:          (C) Koz Ross 2021-3
 category:           Text
-tested-with:        GHC ==9.4.8 || ==9.6.4 || ==9.8.1
+tested-with:        GHC ==9.4.8 || ==9.6.6 || ==9.8.4 || ==9.10.1
 build-type:         Simple
 extra-source-files:
   CHANGELOG.md
